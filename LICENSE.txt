@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2021 Michael X. Wang, Nicolae Sapoval, R. A. Leo Elworth, Yilei Fu, Yunxi Liu, Bryce Kille, Holly Hammond, Matthew Frieman, Todd J. Treangen. 
+Copyright (c) 2021 Michael X. Wang, Esther G. Lou, Nicolae Sapoval, Eddie Kim, Prashant Kalvapalle, Bryce Kille, R. A. Leo Elworth, Yilei Fu, Yunxi Liu, Lauren B. Stadler, Todd J. Treangen. 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
