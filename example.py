@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
         out_path = './', # Output directory.
         title = 'olivar-ref', # Name of the Olivar reference file [olivar-ref].
-        threads = 10 # Number of threads.
+        threads = 1 # Number of threads.
     )
 
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         rP_prefix = '', # Prefix of reverse primer. Empty string '' by default.
         
         seed = 10, # Random seed for optimizing primer design regions and primer dimer [10].
-        threads = 10, # Number of threads.
+        threads = 1, # Number of threads.
     )
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
         max_amp_len = 1500, # Maximum length of predicted non-specific amplicon [1500].
         temperature = 60, # PCR annealing temperature [60.0].
-        threads = 10 # Number of threads.
+        threads = 1 # Number of threads.
     )
 
 
@@ -90,5 +90,5 @@ if __name__ == "__main__":
 
         max_amp_len = 1500, # Maximum length of predicted non-specific amplicon [1500].
         temperature = 60, # PCR annealing temperature [60.0].
-        threads = 10 # Number of threads.
+        threads = 1 # Number of threads.
     )

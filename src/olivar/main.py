@@ -847,7 +847,12 @@ def save(design_out, out_path: str):
     all_loss = design_out['all_loss']
     lc = design_out['learning_curve']
     df = design_out['df']
-    art_df = design_out['art_df']
+
+    # column name mapper for backward compatibility
+    df.rename(columns={
+        'amp_id': 'amplicon_id', 
+        'amp': 'amplicon'
+    }, inplace=True)
 
     # save configurations
     save_path = os.path.join(out_path, '%s.json' % config['title'])
@@ -861,10 +866,14 @@ def save(design_out, out_path: str):
     print(f'Primer pools saved as {save_path}')
 
     # save ARTIC output format
-    save_path = os.path.join(out_path, '%s.scheme.bed' % config['title'])
-    art_df.sort_values(by='start', axis=0, ascending=True, inplace=True)
-    art_df.to_csv(save_path, sep='\t', header=False, index=False)
-    print(f'Primer pools (ARTIC format) saved as {save_path}')
+    try:
+        art_df = design_out['art_df']
+        save_path = os.path.join(out_path, '%s.scheme.bed' % config['title'])
+        art_df.sort_values(by='start', axis=0, ascending=True, inplace=True)
+        art_df.to_csv(save_path, sep='\t', header=False, index=False)
+        print(f'Primer pools (ARTIC format) saved as {save_path}')
+    except KeyError:
+        print('ARTIC/PrimalScheme format is not included in older versions of Olivar, skipped.')
 
     # save reference sequence
     save_path = os.path.join(out_path, '%s.fasta' % config['title'])
@@ -1111,6 +1120,13 @@ def validate(primer_pool: str, pool: int, BLAST_db: str, out_path: str,
     seq_list = []
     seq_names = []
     df = pd.read_csv(primer_pool, sep=',', index_col=False)
+
+    # column name mapper for backward compatibility
+    df.rename(columns={
+        'amp_id': 'amplicon_id', 
+        'amp': 'amplicon'
+    }, inplace=True)
+    
     for i, row in df[df['pool']==pool].iterrows():
         seq_list.extend([row['fP'], row['rP']])
         seq_names.extend(['%s_fP' % row['amplicon_id'], '%s_rP' % row['amplicon_id']])
