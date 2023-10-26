@@ -46,11 +46,12 @@ Use BLAST 2.12.0 or 2.13.0 to reproduce the results in example_output.
 
  - (Optional) List of sequence variations to be avoided, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
 
- - (Optional) A BLAST database of non-specific sequences ([example](example_input/Human)). To make your own BLAST database, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). NCBI BLAST Command Line Applications are already installed along with Olivar.
-The example BLAST database is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command below
+ - (Optional) A BLAST database of non-specific sequences ([example](example_input/Human)). To make your own BLAST database, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). NCBI BLAST Command Line Applications are already installed along with Olivar.\
+&ensp; The example BLAST database is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command below
 ```
 makeblastdb -in GRCh38_primary.fasta -dbtype nucl -title GRCh38_primary -parse_seqids -hash_index -out GRCh38_primary -max_file_sz 4GB -logfile makeblastdb.out -taxid 9606
 ```
+`makeblastdb` is installed along with Olivar. 
 
 ### Command-line interface
 
