@@ -11,19 +11,15 @@ Olivar is a Python3 software for multiplex PCR tiling design. Olivar implements 
 
 A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), although it does not support all available functions at the moment. 
 
-## Install with conda (Linux or macOS Intel)
+## Install with Conda (Linux or Mac Intel Chipp)
 
-#### 1. Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) if not installed already
-e.g., download latest miniconda installer for macOS Intel x86, and in terminal
-```
-bash Miniconda3-latest-MacOSX-x86_64.sh
-```
+#### 1. Install Miniconda if not installed already ([quick command line install](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install))
 
-#### 2. Create a new conda environment and install olivar via [Bioconda](https://bioconda.github.io/)
+#### 2. Create a new Conda environment and install Olivar via [Bioconda](https://bioconda.github.io/)
 ```
 conda create -n olivar olivar --channel conda-forge --channel bioconda --channel defaults --strict-channel-priority
 ```
-Setting channel priority is important for [blast](https://bioconda.github.io/recipes/blast/README.html) to function properly. The Bioconda version of blast does not support Windows or Apple silicon at the moment. 
+Setting channel priority is important for [BLAST](https://bioconda.github.io/recipes/blast/README.html) to function properly. BLAST does not support Windows or Apple silicon at the moment. 
 
 ## Dependencies
 ```
@@ -35,7 +31,7 @@ pandas
 plotly >=5.13.0
 tqdm
 ```
-Use BLAST 2.12.0 or 2.13.0 to reproduce the results in example_output. 
+**Use BLAST 2.12.0 or 2.13.0 to reproduce the results in example_output.**
 
 
 ## Usage
@@ -181,7 +177,7 @@ olivar validate csv-file [--pool <int>] [--db <string>] [--output <string>]
 ## Prepare a BLAST database
 All BLAST related commands/scripts are installed along with Olivar. 
  - To make your own BLAST database with the `makeblastdb` command, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). \
-The [example BLAST database](example_input/Human) is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command:
+The [example BLAST database](example_input/Human) is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command (BLAST version 2.12.0):
 ```
 makeblastdb -in GRCh38_primary.fasta -dbtype nucl -title GRCh38_primary -parse_seqids -hash_index -out GRCh38_primary -max_file_sz 4GB -logfile makeblastdb.out -taxid 9606
 ```
