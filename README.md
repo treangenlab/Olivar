@@ -24,6 +24,7 @@ Setting channel priority is important for [BLAST](https://bioconda.github.io/rec
 #### 3. Activate the new Conda environment and run Olivar
 ```
 conda activate olivar
+olivar --help
 ```
 
 ## Dependencies
