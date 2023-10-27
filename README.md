@@ -19,7 +19,7 @@ A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), alt
 ```
 conda create -n olivar olivar --channel conda-forge --channel bioconda --channel defaults --strict-channel-priority
 ```
-Setting channel priority is important for [BLAST](https://bioconda.github.io/recipes/blast/README.html) to function properly. BLAST does not support Windows or Apple silicon at the moment. 
+Setting channel priority is important for [BLAST](https://bioconda.github.io/recipes/blast/README.html) to function properly. The Bioconda version of BLAST does not support Windows or Apple silicon at the moment. 
 
 #### 3. Activate the new Conda environment and run Olivar
 ```
