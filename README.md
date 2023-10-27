@@ -11,15 +11,20 @@ Olivar is a Python3 software for multiplex PCR tiling design. Olivar implements 
 
 A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), although it does not support all available functions at the moment. 
 
-## Install with Conda (Linux or Mac Intel Chipp)
+## Install with Conda (Linux or Mac Intel Chip)
 
 #### 1. Install Miniconda if not installed already ([quick command line install](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install))
 
-#### 2. Create a new Conda environment and install Olivar via [Bioconda](https://bioconda.github.io/)
+#### 2. Create a new Conda environment named "olivar" and install the Olivar package
 ```
 conda create -n olivar olivar --channel conda-forge --channel bioconda --channel defaults --strict-channel-priority
 ```
 Setting channel priority is important for [BLAST](https://bioconda.github.io/recipes/blast/README.html) to function properly. BLAST does not support Windows or Apple silicon at the moment. 
+
+#### 3. Activate the new Conda environment and run Olivar
+```
+conda activate olivar
+```
 
 ## Dependencies
 ```
