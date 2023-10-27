@@ -46,7 +46,7 @@ Use BLAST 2.12.0 or 2.13.0 to reproduce the results in example_output.
 
  - (Optional) List of sequence variations to be avoided, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
 
- - (Optional) A BLAST database of non-specific sequences ([example](example_input/Human)). More details can be found in [BLAST database](#BLAST-database). 
+ - (Optional) A BLAST database of non-specific sequences ([example](example_input/Human)). More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database). 
 
 ### Command-line interface
 
@@ -178,7 +178,7 @@ olivar validate csv-file [--pool <int>] [--db <string>] [--output <string>]
 |--temperature| 60.0| PCR annealing temperature.|
 |--threads, -p| 1| Number of threads.|
 
-## BLAST database
+## Prepare a BLAST database
 All BLAST related commands/scripts are installed along with Olivar. 
  - To make your own BLAST database with the `makeblastdb` command, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). \
 The [example BLAST database](example_input/Human) is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command:
