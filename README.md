@@ -178,16 +178,16 @@ olivar validate csv-file [--pool <int>] [--db <string>] [--output <string>]
 |--temperature| 60.0| PCR annealing temperature.|
 |--threads, -p| 1| Number of threads.|
 
-### BLAST database
+## BLAST database
 All BLAST related commands/scripts are installed along with Olivar. 
- - To make your own BLAST database, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). \
-The [example BLAST database](example_input/Human) is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the `makeblastdb` command:
+ - To make your own BLAST database with the `makeblastdb` command, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). \
+The [example BLAST database](example_input/Human) is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command:
 ```
 makeblastdb -in GRCh38_primary.fasta -dbtype nucl -title GRCh38_primary -parse_seqids -hash_index -out GRCh38_primary -max_file_sz 4GB -logfile makeblastdb.out -taxid 9606
 ```
  - To download a pre-built BLAST database from NCBI (e.g., RefSeq representative gennomes for viruses), use the `update_blastdb.pl` script:
 ```
-update_blastdb.pl --passive --decompress ref_viruses_rep_genomes
+update_blastdb.pl --decompress ref_viruses_rep_genomes
 ```
-For more details about the script, check the [BLAST Help](https://www.ncbi.nlm.nih.gov/books/NBK52640/#_chapter1_Database_Download_). \
+For more details about `update_blastdb.pl`, check the [BLAST Help](https://www.ncbi.nlm.nih.gov/books/NBK52640/#_chapter1_Database_Download_). \
 For more pre-built databases, check the [NCBI FTP site](https://ftp.ncbi.nlm.nih.gov/blast/db/).
