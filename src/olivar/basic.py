@@ -33,7 +33,10 @@ def revcomp(seq):
         complement = {'A':'T', 'T':'A', 'C':'G', 'G':'C', 'N':'N', 
         'a':'t', 't':'a', 'c':'g', 'g':'c', 'n':'n', 
         '0':'1', '1':'0', '2':'3', '3':'2', '4':'4'}
-        bases = [complement[base] for base in seq]
+        try:
+            bases = [complement[base] for base in seq]
+        except KeyError:
+            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}'..., ambiguous bases are not accepted.")
         bases.reverse()
         return ''.join(bases)
     elif isinstance(seq, list):
@@ -41,11 +44,14 @@ def revcomp(seq):
         'a':'t', 't':'a', 'c':'g', 'g':'c', 'n':'n', 
         '0':'1', '1':'0', '2':'3', '3':'2', '4':'4', 
         0:1, 1:0, 2:3, 3:2, 4:4}
-        bases = [complement[base] for base in seq]
+        try:
+            bases = [complement[base] for base in seq]
+        except KeyError:
+            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}'..., ambiguous bases are not accepted.")
         bases.reverse()
         return bases
     else:
-        return -1
+        raise ValueError('Only string or list is accepted for reverse complement.')
 
 
 def get_GC(seq):
@@ -72,7 +78,10 @@ def seq2arr(seq_str):
         array sequence
     '''
     dic = {'A':0, 'T':1, 'C':2, 'G':3, 'a':0, 't':1, 'c':2, 'g':3}
-    seq_list = [dic[s] for s in list(seq_str)]
+    try:
+        seq_list = [dic[s] for s in list(seq_str)]
+    except KeyError:
+        raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq_str[:10]}'..., ambiguous bases are not accepted.")
     return seq_list
 
 
