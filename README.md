@@ -15,11 +15,11 @@ A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), alt
 
 #### 1. Install Miniconda if not installed already ([quick command line install](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install))
 
-#### 2. Create a new Conda environment named "olivar" and install the Olivar package
+#### 2. Create a new Conda environment named "olivar" and install Olivar via Bioconda
 ```
 conda create -n olivar olivar --channel conda-forge --channel bioconda --channel defaults --strict-channel-priority
 ```
-Setting channel priority is important for [BLAST](https://bioconda.github.io/recipes/blast/README.html) to function properly. The Bioconda version of BLAST does not support Windows or Apple silicon at the moment. 
+Setting channel priority is important for Bioconda packages to function properly. For more information, check the [Bioconda documentation](https://bioconda.github.io/). 
 
 #### 3. Activate the new Conda environment and run Olivar
 ```
@@ -44,11 +44,11 @@ tqdm
 
 ### Input files
 
- - (Required) Reference sequence in fasta format ([example](example_input/EPI_ISL_402124.fasta)). **Ambiguous bases are currently not supported and will raise errors.**
+ - (Required) Reference sequence in fasta format ([example](example_input/EPI_ISL_402124.fasta)). Ambiguous bases are not supported. 
 
  - (Optional) List of sequence variations to be avoided, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
 
- - (Optional) A BLAST database of non-specific sequences ([example](example_input/Human)). More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database). 
+ - (Optional) A BLAST database of non-specific sequences ([Git LFS](https://git-lfs.com/) is needed to clone the [example database](example_input/Human)). More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database). 
 
 ### Command-line interface
 
@@ -183,7 +183,7 @@ olivar validate csv-file [--pool <int>] [--db <string>] [--output <string>]
 |--threads, -p| 1| Number of threads.|
 
 ## Prepare a BLAST database
-All BLAST related commands/scripts are installed along with Olivar. 
+:bangbang: All BLAST related commands/scripts are installed along with Olivar. 
  - To make your own BLAST database with the `makeblastdb` command, check out the [NCBI BLAST User Manual](https://www.ncbi.nlm.nih.gov/books/NBK569841/). \
 The [example BLAST database](example_input/Human) is created with 23 Chromosomes and MT of human genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/), with the command (BLAST version 2.12.0):
 ```
