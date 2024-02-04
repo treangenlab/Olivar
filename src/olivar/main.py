@@ -232,6 +232,7 @@ def generate_context(SOI):
     find a valid set of PDRs that cover the whole sequence of interest (SOI).
     '''
     risk_arr, start, stop, max_amp_len, min_amp_len, seed = SOI
+    SOI_len = stop - start + 1
     rng = default_rng(seed)
     
     all_context_seq = [] # coordinates of all context sequences
@@ -276,7 +277,12 @@ def generate_context(SOI):
     all_risk = np.array(all_risk)
     all_risk_flatten = all_risk.flatten()
     k = int(len(all_risk_flatten) * (1-RISK_TH))
-    loss = sum(np.partition(all_risk_flatten, k)[k:]**2)
+
+    cover_start = all_context_seq[0][1]+1
+    cover_stop = all_context_seq[-1][2]-1
+    coverage = (cover_stop-cover_start+1)/SOI_len
+
+    loss = sum(np.partition(all_risk_flatten, k)[k:]**2)/(coverage**2)
     #loss = sum(all_risk_flatten[all_risk_flatten>=RISK_TH])
     return all_context_seq, all_risk, loss
 
@@ -366,7 +372,7 @@ def design_context_seq(config):
     # find the best arangement of primer design regions
     best_design = sorted(design, key=lambda x:x[2])
     all_context_seq, all_risk, loss = best_design[0]
-    print('Best total risk: %.3f' % loss)
+    print('Loss of the best design: %.3f' % loss)
     
     # prepare output
     all_plex_info = {}
