@@ -282,7 +282,7 @@ def generate_context(SOI):
     cover_stop = all_context_seq[-1][2]-1
     coverage = (cover_stop-cover_start+1)/SOI_len
 
-    loss = sum(np.partition(all_risk_flatten, k)[k:]**2)
+    loss = sum(np.partition(all_risk_flatten, k)[k:]**2)/(coverage**2)
     #loss = sum(all_risk_flatten[all_risk_flatten>=RISK_TH])
     return all_context_seq, all_risk, loss
 

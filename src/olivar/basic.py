@@ -36,7 +36,7 @@ def revcomp(seq):
         try:
             bases = [complement[base] for base in seq]
         except KeyError:
-            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}'..., ambiguous bases are not accepted.")
+            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}...', ambiguous bases are not accepted.")
         bases.reverse()
         return ''.join(bases)
     elif isinstance(seq, list):
@@ -47,7 +47,7 @@ def revcomp(seq):
         try:
             bases = [complement[base] for base in seq]
         except KeyError:
-            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}'..., ambiguous bases are not accepted.")
+            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}...', ambiguous bases are not accepted.")
         bases.reverse()
         return bases
     else:
@@ -81,7 +81,7 @@ def seq2arr(seq_str):
     try:
         seq_list = [dic[s] for s in list(seq_str)]
     except KeyError:
-        raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq_str[:10]}'..., ambiguous bases are not accepted.")
+        raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq_str[:10]}...', ambiguous bases are not accepted.")
     return seq_list
 
 

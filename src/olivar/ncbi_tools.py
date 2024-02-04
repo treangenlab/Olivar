@@ -106,7 +106,7 @@ def BLAST_batch_short(seq_list: list, db: str, n_cpu=1, seq_names=None, mode='ro
         #     num_threads=n_cpu, 
         #     **config)
         # stdout, stderr = blastn_cline()
-        cmd_result = subprocess.run([
+        subprocess.run([
             'blastn', 
             '-query', BLAST_input, 
             '-db', db, 
