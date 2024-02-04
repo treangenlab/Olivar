@@ -22,8 +22,10 @@ import copy
 from time import time
 
 import pandas as pd
+import subprocess
 from Bio.Blast import NCBIXML
-from Bio.Blast.Applications import NcbiblastnCommandline
+#from Bio.Blast.Applications import NcbiblastnCommandline
+# The Bio.Application modules and modules relying on it have been deprecated
 from tqdm import tqdm
 
 
@@ -97,13 +99,27 @@ def BLAST_batch_short(seq_list: list, db: str, n_cpu=1, seq_names=None, mode='ro
                 'gapopen': 5, 
                 'gapextend': 2
             }
-        blastn_cline = NcbiblastnCommandline(query=BLAST_input, 
-            db=db, 
-            out=BLAST_output, 
-            task='blastn-short', 
-            num_threads=n_cpu, 
-            **config)
-        stdout, stderr = blastn_cline()
+        # blastn_cline = NcbiblastnCommandline(query=BLAST_input, 
+        #     db=db, 
+        #     out=BLAST_output, 
+        #     task='blastn-short', 
+        #     num_threads=n_cpu, 
+        #     **config)
+        # stdout, stderr = blastn_cline()
+        cmd_result = subprocess.run([
+            'blastn', 
+            '-query', BLAST_input, 
+            '-db', db, 
+            '-out', BLAST_output, 
+            '-task', 'blastn-short', 
+            '-num_threads', str(n_cpu), 
+            '-outfmt', str(config['outfmt']), 
+            '-evalue', str(config['evalue']), 
+            '-reward', str(config['reward']), 
+            '-penalty', str(config['penalty']), 
+            '-gapopen', str(config['gapopen']), 
+            '-gapextend', str(config['gapextend'])
+        ])
         
         # parse result file
         with open(BLAST_output, 'r') as handle:
