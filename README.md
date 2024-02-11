@@ -11,7 +11,7 @@ Olivar is a Python3 software for multiplex PCR tiling design. Olivar implements 
 
 A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), although it does not support all available functions at the moment. 
 
-## Install with Bioconda (Linux x86 or Mac Intel chip)
+## Install with Bioconda (Linux x64 or Mac Intel chip)
 
 #### 1. Install Miniconda if not installed already ([quick command line install](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install))
 
