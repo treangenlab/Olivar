@@ -38,11 +38,6 @@ pandas
 plotly >=5.13.0
 tqdm
 ```
-> [!NOTE]  
-> To reproduce the results in [example_output](example_output/) (primers used in the [publication](https://doi.org/10.1101/2023.02.11.528155)), use BLAST 2.12.0 or 2.13.0.
-> ```
-> conda install olivar blast=2.13.0
-> ```
 
 
 ## Usage
@@ -53,7 +48,16 @@ tqdm
 
  - (Optional) List of sequence variations to be avoided, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
 
- - (Optional) A BLAST database of non-specific sequences ([Git LFS](https://git-lfs.com/) is needed to clone the [example database](example_input/Human)). More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database). 
+ - (Optional) A BLAST database of non-specific sequences. More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database). 
+
+> [!NOTE]  
+> To reproduce the results in [example_output](example_output/) (primers used in the [publication](https://doi.org/10.1101/2023.02.11.528155)), use BLAST v2.12.0 or v2.13.0 and follow the instructions and commands below.
+>
+> To specify the version of BLAST when installing Olivar, 
+> ```
+> conda install olivar blast=2.13.0
+> ```
+> [Git LFS](https://git-lfs.com/) is needed to clone the [example BLAST database](example_input/Human). 
 
 ### Command-line interface
 
