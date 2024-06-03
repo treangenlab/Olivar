@@ -340,7 +340,7 @@ def design_context_seq(config):
     # construct risk array (first row is risk, second row is coordinate on seq_rawy)
     risk_arr = gc_arr + comp_arr + hits_arr + var_arr
 
-    N = 500*len(risk_arr)//max_amp_len # number of primer sets to generate
+    N = 5000*len(risk_arr)//max_amp_len # number of primer sets to generate
     #N = 100
     rand_int = rng_parent.integers(2**32, size=N) # random seeds for each iteration
 
@@ -379,6 +379,7 @@ def design_context_seq(config):
     for i, (context_seq, risk) in enumerate(zip(all_context_seq, all_risk)):
         cs = seq_raw[context_seq[0]-1:context_seq[3]] # actual context sequence
         plex_info = {
+            'reference': config['title'], 
             'tube': i%2 + 1, 
             'context_seq_coords': (context_seq[0], context_seq[3]), 
             'primers_coords': tuple(context_seq), 
@@ -634,6 +635,7 @@ def to_df(all_plex_info, config):
     l_fP_adp = len(config['fP_prefix']) # length of adapter/prefix
     l_rP_adp = len(config['rP_prefix'])
 
+    ref_name = []
     plex_name = []
     pool = []
 
@@ -666,6 +668,7 @@ def to_df(all_plex_info, config):
 
     #print('amplicons containing SNPs or iSNVs in primers:')
     for plex_id, plex_info in all_plex_info.items():
+        ref_name.append(plex_info['reference'])
         plex_name.append(plex_id)
         pool.append(plex_info['tube'])
         
@@ -700,7 +703,7 @@ def to_df(all_plex_info, config):
 
         # ARTIC columns
         # first fP, then rP
-        art_genome.extend(['input-seq-1', 'input-seq-1'])
+        art_genome.extend([plex_info['reference'], plex_info['reference']])
         art_start.extend([curr_start, curr_insert_end+1])
         art_stop.extend([curr_insert_start-1, curr_end])
         art_primer_name.extend([plex_id+'_LEFT', plex_id+'_RIGHT'])
@@ -710,6 +713,7 @@ def to_df(all_plex_info, config):
 
     # format as DataFrame
     df = pd.DataFrame({
+        'reference': ref_name, 
         'amplicon_id': plex_name, 
         'pool': pool, 
         'fP': fp, 
@@ -795,7 +799,28 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     if not os.path.exists(config['out_path']):
         os.makedirs(config['out_path'])
 
-    all_plex_info, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
+    # for multiple input sequence support
+    design_title = config['title']
+    ref_path_dict = config['ref_path']
+    all_plex_info = {}
+    all_ref_info = {}
+    for ref_name, ref_path in ref_path_dict.items():
+        config['title'] = ref_name
+        config['ref_path'] = ref_path
+        print(f'Designing {ref_name} using {ref_path}...')
+        temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
+        all_plex_info.update(temp_dict)
+        all_ref_info[ref_name] = {
+            'risk_arr': risk_arr, 
+            'gc_arr': gc_arr, 
+            'comp_arr': comp_arr, 
+            'hits_arr': hits_arr, 
+            'var_arr': var_arr, 
+            'all_loss': all_loss, 
+            'seq_record': seq_record, 
+        }
+    config['title'] = design_title
+
     all_plex_info_primer = get_primer(all_plex_info, config)
     all_plex_info_optimize, learning_curve = optimize(all_plex_info_primer, config)
     df, art_df = to_df(all_plex_info_optimize, config)
@@ -803,17 +828,11 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     # format and save design output
     design_out = {
         'config': config, 
-        'risk_arr': risk_arr, 
-        'gc_arr': gc_arr, 
-        'comp_arr': comp_arr, 
-        'hits_arr': hits_arr, 
-        'var_arr': var_arr, 
-        'all_loss': all_loss, 
-        'seq': seq_record, # Bio.SeqRecord
         'df': df, 
         'art_df': art_df, # ARTIC output format
         'all_plex_info': all_plex_info_optimize, 
-        'learning_curve': learning_curve
+        'learning_curve': learning_curve, 
+        'all_ref_info': all_ref_info
     }
     design_path = os.path.join(config['out_path'], '%s.olvd' % config['title'])
     with open(design_path, 'wb') as f:
@@ -845,14 +864,9 @@ def save(design_out, out_path: str):
         os.makedirs(out_path)
         
     config = design_out['config']
-    risk_arr = design_out['risk_arr']
-    gc_arr = design_out['gc_arr']
-    comp_arr = design_out['comp_arr']
-    hits_arr = design_out['hits_arr']
-    var_arr = design_out['var_arr']
-    all_loss = design_out['all_loss']
     lc = design_out['learning_curve']
     df = design_out['df']
+    all_ref_info = design_out['all_ref_info']
 
     # column name mapper for backward compatibility
     df.rename(columns={
@@ -881,38 +895,24 @@ def save(design_out, out_path: str):
     except KeyError:
         print('ARTIC/PrimalScheme format is not included in older versions of Olivar, skipped.')
 
-    # save reference sequence
-    save_path = os.path.join(out_path, '%s.fasta' % config['title'])
-    with open(save_path, 'w') as f:
-        SeqIO.write([design_out['seq']], f, 'fasta')
-    print(f'Reference sequence saved as {save_path}')
-
-    # save risk array
-    risk = pd.DataFrame({
-        'position': range(1, len(risk_arr)+1), 
-        'base': list(design_out['seq'].seq), 
-        'extreme GC': gc_arr, 
-        'low complexity': comp_arr, 
-        'non-specificity': hits_arr, 
-        'variations': var_arr, 
-        'risk': risk_arr
-    })
-    save_path = os.path.join(out_path, '%s_risk.csv' % config['title'])
-    risk.to_csv(save_path, index=False)
-    print(f'Risk scores saved as {save_path}')
-
     #------------- Loss and SADDLE Loss -------------#
     fig = make_subplots(
-        rows=2, cols=2, 
-        subplot_titles=('Optimization of primer design regions', 
-            '', 
-            'Primer dimer optimization (pool-1)', 
+        rows=1, cols=2, 
+        subplot_titles=('Primer dimer optimization (pool-1)', 
             'Primer dimer optimization (pool-2)')
     )
 
+    # fig.add_trace(
+    #     go.Scatter(
+    #         y=all_loss, 
+    #         line=dict(color='#1f77b4'), 
+    #         showlegend=False
+    #     ), 
+    #     row=1, col=1
+    # )
     fig.add_trace(
         go.Scatter(
-            y=all_loss, 
+            y=lc[0], 
             line=dict(color='#1f77b4'), 
             showlegend=False
         ), 
@@ -920,28 +920,20 @@ def save(design_out, out_path: str):
     )
     fig.add_trace(
         go.Scatter(
-            y=lc[0], 
-            line=dict(color='#1f77b4'), 
-            showlegend=False
-        ), 
-        row=2, col=1
-    )
-    fig.add_trace(
-        go.Scatter(
             y=lc[1], 
             line=dict(color='#1f77b4'), 
             showlegend=False
         ), 
-        row=2, col=2
+        row=1, col=2
     )
 
-    fig.update_xaxes(title_text='iterations (sorted)', row=1, col=1)
-    fig.update_xaxes(title_text='iterations', row=2, col=1)
-    fig.update_xaxes(title_text='iterations', row=2, col=2)
+    #fig.update_xaxes(title_text='iterations (sorted)', row=1, col=1)
+    fig.update_xaxes(title_text='iterations', row=1, col=1)
+    fig.update_xaxes(title_text='iterations', row=1, col=2)
 
-    fig.update_yaxes(title_text='Loss', type='log', row=1, col=1)
-    fig.update_yaxes(title_text='SADDLE Loss', row=2, col=1)
-    fig.update_yaxes(title_text='SADDLE Loss', row=2, col=2)
+    #fig.update_yaxes(title_text='Loss', type='log', row=1, col=1)
+    fig.update_yaxes(title_text='SADDLE Loss', row=1, col=1)
+    fig.update_yaxes(title_text='SADDLE Loss', row=1, col=2)
 
     # save html figure
     save_path = os.path.join(out_path, '%s_Loss.html' % config['title'])
@@ -950,158 +942,187 @@ def save(design_out, out_path: str):
     print(f'Optimization plots saved as {save_path}')
     #------------- Loss and SADDLE Loss -------------#
 
-    #------------- risk array and primers -------------#
-    # create figure
-    fig = go.Figure()
+    for ref_name, ref_info in all_ref_info.items():
+        risk_arr = ref_info['risk_arr']
+        gc_arr = ref_info['gc_arr']
+        comp_arr = ref_info['comp_arr']
+        hits_arr = ref_info['hits_arr']
+        var_arr = ref_info['var_arr']
+        seq_record = ref_info['seq_record']
 
-    # set figure scale
-    base_offset = (0.5*config['w_egc'] + 0.5*config['w_lc'] + config['w_ns'])/6
+        # save reference sequence
+        save_path = os.path.join(out_path, '%s.fasta' % ref_name)
+        with open(save_path, 'w') as f:
+            SeqIO.write([seq_record], f, 'fasta')
+        print(f'Reference sequence saved as {save_path}')
 
-    # plot risk array
-    r = np.arange(len(risk_arr))
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=gc_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#1f77b4'),
-            name='extreme GC',
-            stackgroup='one' # define stack group
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=comp_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#ff7f0e'),
-            name='low complexity',
-            stackgroup='one'
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=hits_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#2ca02c'),
-            name='non-specificity',
-            stackgroup='one'
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=var_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#d62728'),
-            name='variations',
-            stackgroup='one'
-        )
-    )
+        # save risk array
+        risk = pd.DataFrame({
+            'position': range(1, len(risk_arr)+1), 
+            'base': list(seq_record.seq), 
+            'extreme GC': gc_arr, 
+            'low complexity': comp_arr, 
+            'non-specificity': hits_arr, 
+            'variations': var_arr, 
+            'risk': risk_arr
+        })
+        save_path = os.path.join(out_path, '%s_risk.csv' % ref_name)
+        risk.to_csv(save_path, index=False)
+        print(f'Risk scores saved as {save_path}')
 
-    # plot primers
-    fp_rp_diff = 0.1 # distance between fP and rP
-    head_dx = 7 # arrow head length
-    head_dy = base_offset*7/90 # arrow head height
-    primer_x = [] # x coords for primer plot
-    primer_y = [] # y coords for primer plot
-    hover_text = []
+        #------------- risk array and primers -------------#
+        # create figure
+        fig = go.Figure()
 
-    # pool 1
-    fp_offset = 2 * base_offset
-    rp_offset = (2-fp_rp_diff) * base_offset
-    for i, row in df[df['pool']==1].iterrows():
-        fp_start = row['start']-1
-        fp_stop = row['insert_start']-1
-        rp_start = row['insert_end']
-        rp_stop = row['end']
-        # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
-        # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
-        primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
-            rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
-        primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
-            rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
-        hover_text.extend(['pool-1 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
-            ['pool-1 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
-    
-    # pool 2
-    fp_offset = base_offset
-    rp_offset = (1-fp_rp_diff) * base_offset
-    for i, row in df[df['pool']==2].iterrows():
-        fp_start = row['start']-1
-        fp_stop = row['insert_start']-1
-        rp_start = row['insert_end']
-        rp_stop = row['end']
-        # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
-        # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
-        primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
-            rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
-        primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
-            rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
-        hover_text.extend(['pool-2 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
-            ['pool-2 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
-    
-    # plot all primers
-    fig.add_trace(
-        go.Scatter(
-            x=primer_x, y=primer_y, 
-            mode='lines', # connect points with lines
-            connectgaps=False, # gaps (np.nan or None) in the provided data arrays are not connected
-            line=dict(color='rgb(0,0,0)'), # black
-            showlegend=False, 
-            hovertemplate='%{text}<extra></extra>', # <extra></extra> hides the "trace 4"
-            text=hover_text
-        )
-    )
+        # set figure scale
+        base_offset = (0.5*config['w_egc'] + 0.5*config['w_lc'] + config['w_ns'])/6
+        base_offset *= 3
 
-    # title and axis
-    fig.update_layout(
-        hoverlabel=dict(
-            bgcolor='white'
-        ), 
-        # title
-        title_text="risk components are stacked together", 
-        title_x=0.98, 
-        titlefont=dict(
-            size=18,
-        ), 
-
-        # axis
-        xaxis=dict(
-            tickformat='%d', 
-            tickfont=dict(
-                size=14, 
-            ), 
-            showgrid=False, 
-            rangeslider=dict(
-                visible=True
+        # plot risk array
+        r = np.arange(len(risk_arr))
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=gc_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#1f77b4'),
+                name='extreme GC',
+                stackgroup='one' # define stack group
             )
-        ), 
-        yaxis=dict(
-            range=[0, base_offset*6], 
-            tickfont=dict(
-                size=14, 
-            ), 
-            showgrid=False
-        ), 
-
-        # axis title
-        xaxis_title='position', 
-        yaxis_title='risk', 
-
-        # global font
-        font=dict(
-            size=16,
         )
-    )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=comp_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#ff7f0e'),
+                name='low complexity',
+                stackgroup='one'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=hits_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#2ca02c'),
+                name='non-specificity',
+                stackgroup='one'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=var_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#d62728'),
+                name='variations',
+                stackgroup='one'
+            )
+        )
 
-    # save html figure
-    save_path = os.path.join(out_path, '%s.html' % config['title'])
-    with open(save_path, 'w') as f:
-        f.write(plotly.io.to_html(fig))
-    print(f'Risk and primer viewer saved as {save_path}')
-    #------------- risk array and primers -------------#
+        # plot primers
+        fp_rp_diff = 0.1 # distance between fP and rP
+        head_dx = 7 # arrow head length
+        head_dy = base_offset*7/90 # arrow head height
+        primer_x = [] # x coords for primer plot
+        primer_y = [] # y coords for primer plot
+        hover_text = []
+
+        # pool 1
+        fp_offset = 2 * base_offset
+        rp_offset = (2-fp_rp_diff) * base_offset
+        for i, row in df[(df['reference']==ref_name) & (df['pool']==1)].iterrows():
+            fp_start = row['start']-1
+            fp_stop = row['insert_start']-1
+            rp_start = row['insert_end']
+            rp_stop = row['end']
+            # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
+            # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
+            primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
+                rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
+            primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
+                rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
+            hover_text.extend(['pool-1 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
+                ['pool-1 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
+        
+        # pool 2
+        fp_offset = base_offset
+        rp_offset = (1-fp_rp_diff) * base_offset
+        for i, row in df[(df['reference']==ref_name) & (df['pool']==2)].iterrows():
+            fp_start = row['start']-1
+            fp_stop = row['insert_start']-1
+            rp_start = row['insert_end']
+            rp_stop = row['end']
+            # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
+            # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
+            primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
+                rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
+            primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
+                rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
+            hover_text.extend(['pool-2 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
+                ['pool-2 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
+        
+        # plot all primers
+        fig.add_trace(
+            go.Scatter(
+                x=primer_x, y=primer_y, 
+                mode='lines', # connect points with lines
+                connectgaps=False, # gaps (np.nan or None) in the provided data arrays are not connected
+                line=dict(color='rgb(0,0,0)'), # black
+                showlegend=False, 
+                hovertemplate='%{text}<extra></extra>', # <extra></extra> hides the "trace 4"
+                text=hover_text
+            )
+        )
+
+        # title and axis
+        fig.update_layout(
+            hoverlabel=dict(
+                bgcolor='white'
+            ), 
+            # title
+            title_text="risk components are stacked together", 
+            title_x=0.98, 
+            titlefont=dict(
+                size=18,
+            ), 
+
+            # axis
+            xaxis=dict(
+                tickformat='%d', 
+                tickfont=dict(
+                    size=14, 
+                ), 
+                showgrid=False, 
+                rangeslider=dict(
+                    visible=True
+                )
+            ), 
+            yaxis=dict(
+                range=[0, base_offset*6], 
+                tickfont=dict(
+                    size=14, 
+                ), 
+                showgrid=False
+            ), 
+
+            # axis title
+            xaxis_title='position', 
+            yaxis_title='risk', 
+
+            # global font
+            font=dict(
+                size=16,
+            )
+        )
+
+        # save html figure
+        save_path = os.path.join(out_path, '%s.html' % ref_name)
+        with open(save_path, 'w') as f:
+            f.write(plotly.io.to_html(fig))
+        print(f'Risk and primer viewer saved as {save_path}')
+        #------------- risk array and primers -------------#
 
 
 def validate(primer_pool: str, pool: int, BLAST_db: str, out_path: str, 
