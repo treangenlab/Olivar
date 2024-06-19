@@ -3,7 +3,7 @@
 
 
 __author__ = 'Michael X. Wang'
-__version__ = '1.1.4'
+__version__ = '1.1.5'
 
 
 import argparse
