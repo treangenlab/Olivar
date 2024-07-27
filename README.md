@@ -4,7 +4,7 @@
 # Olivar multiplex PCR tiling design
 
 ## Description
-Olivar is a Python3 software for multiplex PCR tiling design. Olivar implements a novel algorithm to reduce non-specific amplifications in PCR, while avoiding primer design at SNPs and other undesired regions at the same time. Olivar also optimize for primer dimers with the [SADDLE](https://www.nature.com/articles/s41467-022-29500-4) algorithm. Olivar is also published as a [preprint](https://doi.org/10.1101/2023.02.11.528155) on bioRxiv. 
+Olivar is a Python3 software for multiplex PCR tiling design. Olivar implements a novel algorithm to reduce non-specific amplifications in PCR, while avoiding primer design at SNPs and other undesired regions at the same time. Olivar also optimize for primer dimers with the [SADDLE](https://www.nature.com/articles/s41467-022-29500-4) algorithm. Olivar is also published as an [article](https://doi.org/10.1038/s41467-024-49957-9) on Nature Communications. 
 ![](Figures/Fig1.png)
 
 ## Web Interface
