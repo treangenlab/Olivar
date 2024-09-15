@@ -802,29 +802,40 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     if not os.path.exists(config['out_path']):
         os.makedirs(config['out_path'])
 
-    # check input is a file or a directory
-    design_title = config['title'] # store config values
+    # store config values
+    design_title = config['title']
     design_ref_path = config['ref_path']
-    ref_path_dict = dict()
-    # REFEXT = '.olvr', reference extension
-    if os.path.isfile(design_ref_path) and design_ref_path[-len(REFEXT):] == REFEXT:
-        # use design_title as reference name
-        ref_path_dict[design_title] = design_ref_path
+
+    # validate input .olvr file(s)
+    ref_path_dict = dict() # {ref_name: ref_path}
+    # check input is a file or a directory
+    if os.path.isfile(design_ref_path) and design_ref_path.endswith(REFEXT):
+        # use the name of the .olvr file as reference name
+        file = os.path.basename(design_ref_path)
+        ref_path_dict[file[:-len(REFEXT)]] = design_ref_path
     elif os.path.isdir(design_ref_path):
         for file in sorted(os.listdir(design_ref_path)):
             file_path = os.path.join(design_ref_path, file)
-            if os.path.isfile(file_path) and file[-len(REFEXT):] == REFEXT:
+            if os.path.isfile(file_path) and file_path.endswith(REFEXT):
                 # use file name as reference name
                 ref_path_dict[file[:-len(REFEXT)]] = file_path
+        if ref_path_dict:
+            print(f'Found {len(ref_path_dict)} {REFEXT} file(s) under "{design_ref_path}"')
+            for file_path in ref_path_dict.values():
+                print(os.path.basename(file_path))
+        else:
+            raise FileNotFoundError(f'No {REFEXT} file found in the directory "{design_ref_path}".')
     else:
-        raise ValueError(f'Input is neither a {REFEXT} file nor a directory.')
+        raise FileNotFoundError(f'Input is neither a {REFEXT} file nor a directory.')
+    print()
     
+    # design PDRs for each reference
     all_plex_info = {}
     all_ref_info = {}
     for ref_name, ref_path in ref_path_dict.items():
         config['title'] = ref_name
         config['ref_path'] = ref_path
-        print(f'Designing {ref_name} using {ref_path}...')
+        print(f'Designing PDRs for {ref_name} using {ref_path}...')
         temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
         all_plex_info.update(temp_dict)
         all_ref_info[ref_name] = {
@@ -837,6 +848,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
             'seq_record': seq_record, 
         }
         print()
+    
     # revert modified config values
     config['title'] = design_title
     config['ref_path'] = design_ref_path
