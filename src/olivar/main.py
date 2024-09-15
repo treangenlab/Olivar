@@ -61,6 +61,9 @@ LOW_COMPLEXITY = 0.4 # low complexity lower bond [0.4]
 CHOICE_RATE = 0.3 # bottom CHOICE_RATE lowest risk primer design regions are choosen from candidate region
 RISK_TH = 0.1 # top RISK_TH highest risk primer design regions are considered as loss
 
+REFEXT = '.olvr' # extension for Olivar reference file
+DESIGNEXT = '.olvd' # extension for Olivar design file
+
 
 def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int):
     '''
@@ -199,7 +202,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         'hits_arr': hits_arr, 
         'all_hits': all_hits
     }
-    save_path = os.path.join(out_path, '%s.olvr' % title)
+    save_path = os.path.join(out_path, f'{title}{REFEXT}')
     with open(save_path, 'wb') as f:
         pickle.dump(olv_ref, f, protocol=5) # protocol 5 needs python>=3.8
         print('Reference file saved as %s' % save_path)
@@ -379,6 +382,7 @@ def design_context_seq(config):
     for i, (context_seq, risk) in enumerate(zip(all_context_seq, all_risk)):
         cs = seq_raw[context_seq[0]-1:context_seq[3]] # actual context sequence
         plex_info = {
+            'reference': config['title'], 
             'tube': i%2 + 1, 
             'context_seq_coords': (context_seq[0], context_seq[3]), 
             'primers_coords': tuple(context_seq), 
@@ -617,6 +621,7 @@ def optimize(all_plex_info, config):
         all_lc.append(learning_curve)
     
     print('Primer dimer optimization finished in %.3fs' % (time()-tik))
+    print()
     return all_plex_info, all_lc
 
 
@@ -634,6 +639,7 @@ def to_df(all_plex_info, config):
     l_fP_adp = len(config['fP_prefix']) # length of adapter/prefix
     l_rP_adp = len(config['rP_prefix'])
 
+    ref_name = []
     plex_name = []
     pool = []
 
@@ -666,6 +672,7 @@ def to_df(all_plex_info, config):
 
     #print('amplicons containing SNPs or iSNVs in primers:')
     for plex_id, plex_info in all_plex_info.items():
+        ref_name.append(plex_info['reference'])
         plex_name.append(plex_id)
         pool.append(plex_info['tube'])
         
@@ -698,10 +705,10 @@ def to_df(all_plex_info, config):
         fp_full.append(curr_fp['seq']) # fP with adapter/prefix
         rp_full.append(curr_rp['seq'])
 
-        # ARTIC columns
+        # ARTIC columns (use 0-based coordinates for BED format)
         # first fP, then rP
-        art_genome.extend(['input-seq-1', 'input-seq-1'])
-        art_start.extend([curr_start, curr_insert_end+1])
+        art_genome.extend([plex_info['reference'], plex_info['reference']])
+        art_start.extend([curr_start-1, curr_insert_end])
         art_stop.extend([curr_insert_start-1, curr_end])
         art_primer_name.extend([plex_id+'_LEFT', plex_id+'_RIGHT'])
         art_pool.extend([plex_info['tube'], plex_info['tube']])
@@ -710,6 +717,7 @@ def to_df(all_plex_info, config):
 
     # format as DataFrame
     df = pd.DataFrame({
+        'reference': ref_name, 
         'amplicon_id': plex_name, 
         'pool': pool, 
         'fP': fp, 
@@ -744,7 +752,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     '''
     Design tiled amplicons. 
     Input:
-        ref_path: Path to the Olivar reference file (.olvr).
+        ref_path: Path to the Olivar reference file (.olvr), or the directory of reference files for multiple targets.
         out_path: Output directory [./].
         title: Name of this design [olivar-design].
         max_amp_len: Maximum amplicon length [420].
@@ -795,7 +803,57 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     if not os.path.exists(config['out_path']):
         os.makedirs(config['out_path'])
 
-    all_plex_info, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
+    # store config values
+    design_title = config['title']
+    design_ref_path = config['ref_path']
+
+    # validate input .olvr file(s)
+    ref_path_dict = dict() # {ref_name: ref_path}
+    # check input is a file or a directory
+    if os.path.isfile(design_ref_path) and design_ref_path.endswith(REFEXT):
+        # use the name of the .olvr file as reference name
+        file = os.path.basename(design_ref_path)
+        ref_path_dict[file[:-len(REFEXT)]] = design_ref_path
+    elif os.path.isdir(design_ref_path):
+        for file in sorted(os.listdir(design_ref_path)):
+            file_path = os.path.join(design_ref_path, file)
+            if os.path.isfile(file_path) and file_path.endswith(REFEXT):
+                # use file name as reference name
+                ref_path_dict[file[:-len(REFEXT)]] = file_path
+        if ref_path_dict:
+            print(f'Found {len(ref_path_dict)} {REFEXT} file(s) under "{design_ref_path}"')
+            for file_path in ref_path_dict.values():
+                print(os.path.basename(file_path))
+        else:
+            raise FileNotFoundError(f'No {REFEXT} file found in the directory "{design_ref_path}".')
+    else:
+        raise FileNotFoundError(f'Input is neither a {REFEXT} file nor a directory.')
+    print()
+    
+    # design PDRs for each reference
+    all_plex_info = {}
+    all_ref_info = {}
+    for ref_name, ref_path in ref_path_dict.items():
+        config['title'] = ref_name
+        config['ref_path'] = ref_path
+        print(f'Designing PDRs for {ref_name} using {ref_path}...')
+        temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
+        all_plex_info.update(temp_dict)
+        all_ref_info[ref_name] = {
+            'risk_arr': risk_arr, 
+            'gc_arr': gc_arr, 
+            'comp_arr': comp_arr, 
+            'hits_arr': hits_arr, 
+            'var_arr': var_arr, 
+            'all_loss': all_loss, 
+            'seq_record': seq_record, 
+        }
+        print()
+    
+    # revert modified config values
+    config['title'] = design_title
+    config['ref_path'] = design_ref_path
+
     all_plex_info_primer = get_primer(all_plex_info, config)
     all_plex_info_optimize, learning_curve = optimize(all_plex_info_primer, config)
     df, art_df = to_df(all_plex_info_optimize, config)
@@ -803,17 +861,11 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     # format and save design output
     design_out = {
         'config': config, 
-        'risk_arr': risk_arr, 
-        'gc_arr': gc_arr, 
-        'comp_arr': comp_arr, 
-        'hits_arr': hits_arr, 
-        'var_arr': var_arr, 
-        'all_loss': all_loss, 
-        'seq': seq_record, # Bio.SeqRecord
         'df': df, 
         'art_df': art_df, # ARTIC output format
         'all_plex_info': all_plex_info_optimize, 
-        'learning_curve': learning_curve
+        'learning_curve': learning_curve, 
+        'all_ref_info': all_ref_info
     }
     design_path = os.path.join(config['out_path'], '%s.olvd' % config['title'])
     with open(design_path, 'wb') as f:
@@ -833,26 +885,21 @@ def save(design_out, out_path: str):
     '''
     # load data
     if type(design_out) is str:
-        print(f'Loading Olivar design from {design_out}...')
-        try:
+        if os.path.isfile(design_out) and design_out.endswith(DESIGNEXT):
+            print(f'Loading Olivar design from {design_out}...')
             with open(design_out,  'rb') as f:
                 design_out = pickle.load(f)
                 print(f'Successfully loaded Olivar design.')
-        except FileNotFoundError:
-            raise FileNotFoundError('Olivar design file not found.')
+        else:
+            raise FileNotFoundError(f'Olivar design (.olvd) file "{design_out}" not found or is invalid.')
     
     if not os.path.exists(out_path):
         os.makedirs(out_path)
         
     config = design_out['config']
-    risk_arr = design_out['risk_arr']
-    gc_arr = design_out['gc_arr']
-    comp_arr = design_out['comp_arr']
-    hits_arr = design_out['hits_arr']
-    var_arr = design_out['var_arr']
-    all_loss = design_out['all_loss']
     lc = design_out['learning_curve']
     df = design_out['df']
+    all_ref_info = design_out['all_ref_info']
 
     # column name mapper for backward compatibility
     df.rename(columns={
@@ -881,38 +928,16 @@ def save(design_out, out_path: str):
     except KeyError:
         print('ARTIC/PrimalScheme format is not included in older versions of Olivar, skipped.')
 
-    # save reference sequence
-    save_path = os.path.join(out_path, '%s.fasta' % config['title'])
-    with open(save_path, 'w') as f:
-        SeqIO.write([design_out['seq']], f, 'fasta')
-    print(f'Reference sequence saved as {save_path}')
-
-    # save risk array
-    risk = pd.DataFrame({
-        'position': range(1, len(risk_arr)+1), 
-        'base': list(design_out['seq'].seq), 
-        'extreme GC': gc_arr, 
-        'low complexity': comp_arr, 
-        'non-specificity': hits_arr, 
-        'variations': var_arr, 
-        'risk': risk_arr
-    })
-    save_path = os.path.join(out_path, '%s_risk.csv' % config['title'])
-    risk.to_csv(save_path, index=False)
-    print(f'Risk scores saved as {save_path}')
-
-    #------------- Loss and SADDLE Loss -------------#
+    #------------- SADDLE Loss -------------#
     fig = make_subplots(
-        rows=2, cols=2, 
-        subplot_titles=('Optimization of primer design regions', 
-            '', 
-            'Primer dimer optimization (pool-1)', 
+        rows=1, cols=2, 
+        subplot_titles=('Primer dimer optimization (pool-1)', 
             'Primer dimer optimization (pool-2)')
     )
 
     fig.add_trace(
         go.Scatter(
-            y=all_loss, 
+            y=lc[0], 
             line=dict(color='#1f77b4'), 
             showlegend=False
         ), 
@@ -920,188 +945,232 @@ def save(design_out, out_path: str):
     )
     fig.add_trace(
         go.Scatter(
-            y=lc[0], 
-            line=dict(color='#1f77b4'), 
-            showlegend=False
-        ), 
-        row=2, col=1
-    )
-    fig.add_trace(
-        go.Scatter(
             y=lc[1], 
             line=dict(color='#1f77b4'), 
             showlegend=False
         ), 
-        row=2, col=2
+        row=1, col=2
     )
 
-    fig.update_xaxes(title_text='iterations (sorted)', row=1, col=1)
-    fig.update_xaxes(title_text='iterations', row=2, col=1)
-    fig.update_xaxes(title_text='iterations', row=2, col=2)
+    fig.update_xaxes(title_text='iterations', row=1, col=1)
+    fig.update_xaxes(title_text='iterations', row=1, col=2)
 
-    fig.update_yaxes(title_text='Loss', type='log', row=1, col=1)
-    fig.update_yaxes(title_text='SADDLE Loss', row=2, col=1)
-    fig.update_yaxes(title_text='SADDLE Loss', row=2, col=2)
+    fig.update_yaxes(title_text='SADDLE Loss', row=1, col=1)
+    fig.update_yaxes(title_text='SADDLE Loss', row=1, col=2)
 
     # save html figure
-    save_path = os.path.join(out_path, '%s_Loss.html' % config['title'])
+    save_path = os.path.join(out_path, f'{config['title']}_SADDLE_Loss.html')
     with open(save_path, 'w') as f:
         f.write(plotly.io.to_html(fig))
-    print(f'Optimization plots saved as {save_path}')
-    #------------- Loss and SADDLE Loss -------------#
+    print(f'SADDLE optimization plot saved as {save_path}')
+    #------------- SADDLE Loss -------------#
 
-    #------------- risk array and primers -------------#
-    # create figure
-    fig = go.Figure()
+    for ref_name, ref_info in all_ref_info.items():
+        print(f'Saving output files and figures for {ref_name}...')
 
-    # set figure scale
-    base_offset = (0.5*config['w_egc'] + 0.5*config['w_lc'] + config['w_ns'])/6
+        risk_arr = ref_info['risk_arr']
+        gc_arr = ref_info['gc_arr']
+        comp_arr = ref_info['comp_arr']
+        hits_arr = ref_info['hits_arr']
+        var_arr = ref_info['var_arr']
+        seq_record = ref_info['seq_record']
+        all_loss = ref_info['all_loss']
 
-    # plot risk array
-    r = np.arange(len(risk_arr))
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=gc_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#1f77b4'),
-            name='extreme GC',
-            stackgroup='one' # define stack group
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=comp_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#ff7f0e'),
-            name='low complexity',
-            stackgroup='one'
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=hits_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#2ca02c'),
-            name='non-specificity',
-            stackgroup='one'
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=r, y=var_arr,
-            hoverinfo='skip',
-            mode='lines',
-            line=dict(width=0, color='#d62728'),
-            name='variations',
-            stackgroup='one'
-        )
-    )
+        # save reference sequence
+        save_path = os.path.join(out_path, '%s.fasta' % ref_name)
+        with open(save_path, 'w') as f:
+            SeqIO.write([seq_record], f, 'fasta')
+        print(f'Reference sequence saved as {save_path}')
 
-    # plot primers
-    fp_rp_diff = 0.1 # distance between fP and rP
-    head_dx = 7 # arrow head length
-    head_dy = base_offset*7/90 # arrow head height
-    primer_x = [] # x coords for primer plot
-    primer_y = [] # y coords for primer plot
-    hover_text = []
+        # save risk array
+        risk = pd.DataFrame({
+            'position': range(1, len(risk_arr)+1), 
+            'base': list(seq_record.seq), 
+            'extreme GC': gc_arr, 
+            'low complexity': comp_arr, 
+            'non-specificity': hits_arr, 
+            'variations': var_arr, 
+            'risk': risk_arr
+        })
+        save_path = os.path.join(out_path, '%s_risk.csv' % ref_name)
+        risk.to_csv(save_path, index=False)
+        print(f'Risk scores saved as {save_path}')
 
-    # pool 1
-    fp_offset = 2 * base_offset
-    rp_offset = (2-fp_rp_diff) * base_offset
-    for i, row in df[df['pool']==1].iterrows():
-        fp_start = row['start']-1
-        fp_stop = row['insert_start']-1
-        rp_start = row['insert_end']
-        rp_stop = row['end']
-        # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
-        # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
-        primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
-            rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
-        primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
-            rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
-        hover_text.extend(['pool-1 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
-            ['pool-1 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
-    
-    # pool 2
-    fp_offset = base_offset
-    rp_offset = (1-fp_rp_diff) * base_offset
-    for i, row in df[df['pool']==2].iterrows():
-        fp_start = row['start']-1
-        fp_stop = row['insert_start']-1
-        rp_start = row['insert_end']
-        rp_stop = row['end']
-        # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
-        # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
-        primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
-            rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
-        primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
-            rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
-        hover_text.extend(['pool-2 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
-            ['pool-2 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
-    
-    # plot all primers
-    fig.add_trace(
-        go.Scatter(
-            x=primer_x, y=primer_y, 
-            mode='lines', # connect points with lines
-            connectgaps=False, # gaps (np.nan or None) in the provided data arrays are not connected
-            line=dict(color='rgb(0,0,0)'), # black
-            showlegend=False, 
-            hovertemplate='%{text}<extra></extra>', # <extra></extra> hides the "trace 4"
-            text=hover_text
-        )
-    )
-
-    # title and axis
-    fig.update_layout(
-        hoverlabel=dict(
-            bgcolor='white'
-        ), 
-        # title
-        title_text="risk components are stacked together", 
-        title_x=0.98, 
-        titlefont=dict(
-            size=18,
-        ), 
-
-        # axis
-        xaxis=dict(
-            tickformat='%d', 
-            tickfont=dict(
-                size=14, 
-            ), 
-            showgrid=False, 
-            rangeslider=dict(
-                visible=True
+        #------------- PDR Loss -------------#
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                y=all_loss, 
+                line=dict(color='#1f77b4'), 
+                showlegend=False
             )
-        ), 
-        yaxis=dict(
-            range=[0, base_offset*6], 
-            tickfont=dict(
-                size=14, 
-            ), 
-            showgrid=False
-        ), 
-
-        # axis title
-        xaxis_title='position', 
-        yaxis_title='risk', 
-
-        # global font
-        font=dict(
-            size=16,
         )
-    )
+        fig.update_layout(
+            title=f'Optimization of primer design regions (PDRs) for {ref_name}', 
+            xaxis_title='iterations (sorted)', 
+        )
+        fig.update_yaxes(title_text='Loss', type='log')
+        # save html figure
+        save_path = os.path.join(out_path, f'{ref_name}_PDR_Loss.html')
+        with open(save_path, 'w') as f:
+            f.write(plotly.io.to_html(fig))
+        print(f'PDR optimization plot saved as {save_path}')
+        #------------- PDR Loss -------------#
 
-    # save html figure
-    save_path = os.path.join(out_path, '%s.html' % config['title'])
-    with open(save_path, 'w') as f:
-        f.write(plotly.io.to_html(fig))
-    print(f'Risk and primer viewer saved as {save_path}')
-    #------------- risk array and primers -------------#
+        #------------- risk array and primers -------------#
+        # create figure
+        fig = go.Figure()
+
+        # set figure scale
+        base_offset = (0.5*config['w_egc'] + 0.5*config['w_lc'] + config['w_ns'])/6
+        base_offset *= 3
+
+        # plot risk array
+        r = np.arange(len(risk_arr))
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=gc_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#1f77b4'),
+                name='extreme GC',
+                stackgroup='one' # define stack group
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=comp_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#ff7f0e'),
+                name='low complexity',
+                stackgroup='one'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=hits_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#2ca02c'),
+                name='non-specificity',
+                stackgroup='one'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=var_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#d62728'),
+                name='variations',
+                stackgroup='one'
+            )
+        )
+
+        # plot primers
+        fp_rp_diff = 0.1 # distance between fP and rP
+        head_dx = 7 # arrow head length
+        head_dy = base_offset*7/90 # arrow head height
+        primer_x = [] # x coords for primer plot
+        primer_y = [] # y coords for primer plot
+        hover_text = []
+
+        # pool 1
+        fp_offset = 2 * base_offset
+        rp_offset = (2-fp_rp_diff) * base_offset
+        for i, row in df[(df['reference']==ref_name) & (df['pool']==1)].iterrows():
+            fp_start = row['start']-1
+            fp_stop = row['insert_start']-1
+            rp_start = row['insert_end']
+            rp_stop = row['end']
+            # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
+            # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
+            primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
+                rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
+            primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
+                rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
+            hover_text.extend(['pool-1 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
+                ['pool-1 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
+        
+        # pool 2
+        fp_offset = base_offset
+        rp_offset = (1-fp_rp_diff) * base_offset
+        for i, row in df[(df['reference']==ref_name) & (df['pool']==2)].iterrows():
+            fp_start = row['start']-1
+            fp_stop = row['insert_start']-1
+            rp_start = row['insert_end']
+            rp_stop = row['end']
+            # [fp_start, fp_stop] and [fp_offset, fp_offset] is the body of fP
+            # [fp_stop-head_dx, fp_stop] and [fp_offset+head_dy, fp_offset] is the head of fP
+            primer_x.extend([fp_start, fp_stop, None, fp_stop-head_dx, fp_stop, None, 
+                rp_start, rp_stop, None, rp_start, rp_start+head_dx, None])
+            primer_y.extend([fp_offset, fp_offset, None, fp_offset+head_dy, fp_offset, None, 
+                rp_offset, rp_offset, None, rp_offset, rp_offset-head_dy, None])
+            hover_text.extend(['pool-2 %s fP: %d - %d' % (row['amplicon_id'], row['start'], fp_stop)]*6 + \
+                ['pool-2 %s rP: %d - %d' % (row['amplicon_id'], rp_start+1, rp_stop)]*6)
+        
+        # plot all primers
+        fig.add_trace(
+            go.Scatter(
+                x=primer_x, y=primer_y, 
+                mode='lines', # connect points with lines
+                connectgaps=False, # gaps (np.nan or None) in the provided data arrays are not connected
+                line=dict(color='rgb(0,0,0)'), # black
+                showlegend=False, 
+                hovertemplate='%{text}<extra></extra>', # <extra></extra> hides the "trace 4"
+                text=hover_text
+            )
+        )
+
+        # title and axis
+        fig.update_layout(
+            hoverlabel=dict(
+                bgcolor='white'
+            ), 
+            # title
+            title_text=f"{ref_name} (risk components are stacked together)", 
+            title_x=0.98, 
+            titlefont=dict(
+                size=18,
+            ), 
+
+            # axis
+            xaxis=dict(
+                tickformat='%d', 
+                tickfont=dict(
+                    size=14, 
+                ), 
+                showgrid=False, 
+                rangeslider=dict(
+                    visible=True
+                )
+            ), 
+            yaxis=dict(
+                range=[0, base_offset*6], 
+                tickfont=dict(
+                    size=14, 
+                ), 
+                showgrid=False
+            ), 
+
+            # axis title
+            xaxis_title='position', 
+            yaxis_title='risk', 
+
+            # global font
+            font=dict(
+                size=16,
+            )
+        )
+
+        # save html figure
+        save_path = os.path.join(out_path, '%s.html' % ref_name)
+        with open(save_path, 'w') as f:
+            f.write(plotly.io.to_html(fig))
+        print(f'Risk and primer viewer saved as {save_path}')
+        #------------- risk array and primers -------------#
+        print()
 
 
 def validate(primer_pool: str, pool: int, BLAST_db: str, out_path: str, 
