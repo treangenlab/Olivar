@@ -3,7 +3,7 @@
 
 
 '''
-Olivar is a Python3 software for multiplex PCR tiling design. 
+Olivar: multiplex PCR tiling design (https://www.nature.com/articles/s41467-024-49957-9)
 Olivar implements a novel algorithm to reduce non-specific amplifications in PCR, 
 while avoiding primer design at SNPs and other undesired regions at the same time. 
 Olivar also optimize for primer dimers with the SADDLE algorithm (https://www.nature.com/articles/s41467-022-29500-4). 
@@ -11,7 +11,7 @@ Olivar also optimize for primer dimers with the SADDLE algorithm (https://www.na
 
 
 __author__ = 'Michael X. Wang'
-__version__ = '1.1.4'
+__version__ = '1.2.0'
 
 
 import os

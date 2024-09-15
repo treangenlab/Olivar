@@ -61,6 +61,8 @@ LOW_COMPLEXITY = 0.4 # low complexity lower bond [0.4]
 CHOICE_RATE = 0.3 # bottom CHOICE_RATE lowest risk primer design regions are choosen from candidate region
 RISK_TH = 0.1 # top RISK_TH highest risk primer design regions are considered as loss
 
+REFEXT = '.olvr' # extension for Olivar reference file
+
 
 def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int):
     '''
@@ -199,7 +201,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         'hits_arr': hits_arr, 
         'all_hits': all_hits
     }
-    save_path = os.path.join(out_path, '%s.olvr' % title)
+    save_path = os.path.join(out_path, f'{title}{REFEXT}')
     with open(save_path, 'wb') as f:
         pickle.dump(olv_ref, f, protocol=5) # protocol 5 needs python>=3.8
         print('Reference file saved as %s' % save_path)
@@ -340,7 +342,7 @@ def design_context_seq(config):
     # construct risk array (first row is risk, second row is coordinate on seq_rawy)
     risk_arr = gc_arr + comp_arr + hits_arr + var_arr
 
-    N = 5000*len(risk_arr)//max_amp_len # number of primer sets to generate
+    N = 500*len(risk_arr)//max_amp_len # number of primer sets to generate
     #N = 100
     rand_int = rng_parent.integers(2**32, size=N) # random seeds for each iteration
 
@@ -748,7 +750,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     '''
     Design tiled amplicons. 
     Input:
-        ref_path: Path to the Olivar reference file (.olvr).
+        ref_path: Path to the Olivar reference file (.olvr), or the directory of reference files for multiple targets.
         out_path: Output directory [./].
         title: Name of this design [olivar-design].
         max_amp_len: Maximum amplicon length [420].
@@ -799,9 +801,23 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     if not os.path.exists(config['out_path']):
         os.makedirs(config['out_path'])
 
-    # for multiple input sequence support
-    design_title = config['title']
-    ref_path_dict = config['ref_path']
+    # check input is a file or a directory
+    design_title = config['title'] # store config values
+    design_ref_path = config['ref_path']
+    ref_path_dict = dict()
+    # REFEXT = '.olvr', reference extension
+    if os.path.isfile(design_ref_path) and design_ref_path[-len(REFEXT):] == REFEXT:
+        # use design_title as reference name
+        ref_path_dict[design_title] = design_ref_path
+    elif os.path.isdir(design_ref_path):
+        for file in sorted(os.listdir(design_ref_path)):
+            file_path = os.path.join(design_ref_path, file)
+            if os.path.isfile(file_path) and file[-len(REFEXT):] == REFEXT:
+                # use file name as reference name
+                ref_path_dict[file[:-len(REFEXT)]] = file_path
+    else:
+        raise ValueError(f'Input is neither a {REFEXT} file nor a directory.')
+    
     all_plex_info = {}
     all_ref_info = {}
     for ref_name, ref_path in ref_path_dict.items():
@@ -819,7 +835,10 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
             'all_loss': all_loss, 
             'seq_record': seq_record, 
         }
+        print()
+    # revert modified config values
     config['title'] = design_title
+    config['ref_path'] = design_ref_path
 
     all_plex_info_primer = get_primer(all_plex_info, config)
     all_plex_info_optimize, learning_curve = optimize(all_plex_info_primer, config)

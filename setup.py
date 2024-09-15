@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="olivar",
-    version="1.1.4",
+    version="1.2.0",
     author="Michael X. Wang",
     author_email="xw66@rice.edu",
     description="Olivar PCR tiling design",
@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://gitlab.com/treangenlab/olivar",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GPL-3.0 license",
         "Operating System :: OS Independent",
     ],
     package_dir={"": "src"},
