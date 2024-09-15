@@ -703,10 +703,10 @@ def to_df(all_plex_info, config):
         fp_full.append(curr_fp['seq']) # fP with adapter/prefix
         rp_full.append(curr_rp['seq'])
 
-        # ARTIC columns
+        # ARTIC columns (use 0-based coordinates for BED format)
         # first fP, then rP
         art_genome.extend([plex_info['reference'], plex_info['reference']])
-        art_start.extend([curr_start, curr_insert_end+1])
+        art_start.extend([curr_start-1, curr_insert_end])
         art_stop.extend([curr_insert_start-1, curr_end])
         art_primer_name.extend([plex_id+'_LEFT', plex_id+'_RIGHT'])
         art_pool.extend([plex_info['tube'], plex_info['tube']])
