@@ -40,7 +40,7 @@ if __name__ == "__main__":
     tiling_parser = subparsers.add_parser('tiling', help='Design tiled amplicons based on a previously generated Olivar reference.')
     tiling_parser.add_argument(
         'ref_path', type=str, metavar='olvr-file', 
-        help='Path to the Olivar reference file (.olvr).')
+        help='Path to the Olivar reference file (.olvr), or the directory of reference files for multiple targets')
     tiling_parser.add_argument(
         '--output', '-o', type=str, default='./', metavar='<string>', 
         help='Output path (output to current directory by default).')

@@ -62,6 +62,7 @@ CHOICE_RATE = 0.3 # bottom CHOICE_RATE lowest risk primer design regions are cho
 RISK_TH = 0.1 # top RISK_TH highest risk primer design regions are considered as loss
 
 REFEXT = '.olvr' # extension for Olivar reference file
+DESIGNEXT = '.olvd' # extension for Olivar design file
 
 
 def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int):
@@ -884,13 +885,13 @@ def save(design_out, out_path: str):
     '''
     # load data
     if type(design_out) is str:
-        print(f'Loading Olivar design from {design_out}...')
-        try:
+        if os.path.isfile(design_out) and design_out.endswith(DESIGNEXT):
+            print(f'Loading Olivar design from {design_out}...')
             with open(design_out,  'rb') as f:
                 design_out = pickle.load(f)
                 print(f'Successfully loaded Olivar design.')
-        except FileNotFoundError:
-            raise FileNotFoundError('Olivar design file not found.')
+        else:
+            raise FileNotFoundError(f'Olivar design (.olvd) file "{design_out}" not found or is invalid.')
     
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -1128,7 +1129,7 @@ def save(design_out, out_path: str):
                 bgcolor='white'
             ), 
             # title
-            title_text="risk components are stacked together", 
+            title_text=f"{ref_name} (risk components are stacked together)", 
             title_x=0.98, 
             titlefont=dict(
                 size=18,
