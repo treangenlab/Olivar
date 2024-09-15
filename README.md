@@ -4,7 +4,7 @@
 # Olivar multiplex PCR tiling design
 
 ## Description
-Olivar is a Python3 software for multiplex PCR tiling design. Olivar implements a novel algorithm to reduce non-specific amplifications in PCR, while avoiding primer design at SNPs and other undesired regions at the same time. Olivar also optimize for primer dimers with the [SADDLE](https://www.nature.com/articles/s41467-022-29500-4) algorithm. Olivar is also published as an [article](https://doi.org/10.1038/s41467-024-49957-9) on Nature Communications. 
+Olivar is a Python software for multiplex PCR tiling design. Olivar first builds an index for each target of interest, incorporating undesired sequence features such as homologous regions, SNPs and extreme GC content. Olivar then designs tiled amplicons covering a single index or multiple indexes, and minimizes primer dimers with the [SADDLE](https://doi.org/10.1038/s41467-022-29500-4) algorithm. Olivar is published as an [article](https://doi.org/10.1038/s41467-024-49957-9) on Nature Communications. 
 ![](Figures/Fig1.png)
 
 ## Web Interface
@@ -44,24 +44,22 @@ tqdm
 
 ### Input files
 
- - (Required) Reference sequence in fasta format ([example](example_input/EPI_ISL_402124.fasta)). Ambiguous bases are not supported and may raise errors. 
+ - (Required) Reference sequence for each target for tiling, in fasta format ([example](example_input/EPI_ISL_402124.fasta)). Ambiguous bases are not supported and may raise errors. 
 
- - (Optional) List of sequence variations to be avoided, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
+ - (Optional) A list of sequence variations to be avoided for each reference, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
 
  - (Optional) A BLAST database of non-specific sequences. More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database). 
 
 > [!NOTE]  
-> To reproduce the results in [example_output](example_output/) (primers used in the [publication](https://doi.org/10.1101/2023.02.11.528155)), use BLAST v2.12.0 or v2.13.0 and follow the instructions and commands below.
->
-> To specify the version of BLAST when installing Olivar, 
+> To reproduce the results in [example_output](example_output/) (primers used in the [publication](https://doi.org/10.1038/s41467-024-49957-9)), specify package versions during installation and run [example.py](example.py).
 > ```
-> conda install olivar blast=2.13.0
+> conda install olivar blast=2.13.0 numpy=1
 > ```
 > [Git LFS](https://git-lfs.com/) is needed to clone the [example BLAST database](example_input/Human). 
 
 ### Command-line interface
 
-The Olivar CLI tool comprises of four sub-commands: `build`, `tiling`, `save` and `validate`. Descriptions of command-line arguments can be found in [Command-line parameters](#command-line-parameters). 
+Olivar CLI comprises of four sub-commands: `build`, `tiling`, `save` and `validate`. Descriptions of command-line arguments can be found in [Command-line parameters](#command-line-parameters). 
 > [!TIP]
 > `build`, `tiling`, and `validate` support multiprocessing with `-p` option. 
 
@@ -72,10 +70,12 @@ olivar build example_input/EPI_ISL_402124.fasta -v example_input/delta_omicron_l
 ```
 An Olivar reference file ([olivar-ref.olvr](example_output/olivar-ref.olvr)) will be generated. Use multiple CPU cores (`-p`) to accelerate this process. 
 
+If you have multiple targets, run `olivar build` on each fasta file and place all output `.olvr` files in the same directory. 
+
 In this step, the input reference sequence is chopped into kmers, and GC content, sequence complexity and BLAST hits are calculated for each kmer. Sequence variations are also labeled if coordinates are provided. A risk score is assigned to each nucleotide of the reference sequence, guiding the placement of primer design regions. 
 
 #### 2. Design tiled amplicons
-An Olivar reference file generated in step 1 is required. Set random seed (`--seed`) to make the results reproducible. Use multiple CPU cores (`-p`) to accelerate this process. Output files are listed below (coordinates are 1-based). 
+Input a single Olivar reference file generated in step 1, or a directory of multiple `.olvr` files. Set random seed (`--seed`) to make the results reproducible. Use multiple CPU cores (`-p`) to accelerate this process. Output files are listed below (coordinates are 1-based). 
 ```
 olivar tiling example_output/olivar-ref.olvr -o example_output --max-amp-len 420 --min-amp-len 252 --check-var --seed 10 -p 1
 ```
@@ -83,12 +83,15 @@ olivar tiling example_output/olivar-ref.olvr -o example_output --max-amp-len 420
 | :-------  | :-------- | 
 | olivar-design.olvd| Olivar design file, keeping all intermediate results during the design. |
 | olivar-design.csv| Sequences, coordinates (1-based) and pool assignment of primers, inserts and amplicons. |
+| olivar-design.scheme.bed| Primer sequences and coordinates in [ARTIC/PrimalScheme](https://github.com/artic-network/primer-schemes/tree/master/nCoV-2019) (BED) format. |
+| olivar-design_SADDLE_Loss.html| Learning curve for primer dimer optimization. |
 | olivar-design.json| Design configurations. |
-| olivar-design.fasta| Reference sequence. |
-| olivar-design.html| An interactive plot to view primers and the risk array. |
-| olivar-design_Loss.html| Loss of PDR optimization and primer dimer optimization. |
-| olivar-design_risk.csv| Risk scores of each risk component. |
-| olivar-design.scheme.bed| Primer sequences and coordinates in [ARTIC/PrimalScheme](https://github.com/artic-network/primer-schemes/tree/master/nCoV-2019) format. |
+| olivar-ref.fasta| Reference sequence. |
+| olivar-ref.html| An interactive plot to view primers and the risk array. |
+| olivar-ref_PDR_Loss.html| Learning curve for PDR optimization. |
+| olivar-ref_risk.csv| Risk scores of each risk component. |
+
+"olivar-design" is the name of the whole design (may include multiple targets), and "olivar-ref" is the name of a single target.
 
 In this step, the placement of primer design regions (PDRs) is optimized based on the risk array ([Fig.1d](Figures/Fig1.png)), and primer candidates are generated by SADDLE for each PDR in the optimized PDR set. SADDLE also minimizes primer dimer by exploring different combinations of primer candidates. 
 
@@ -138,7 +141,7 @@ olivar build fasta-file [--var <string>] [--db <string>] [--output <string>]
 
 #### sub-command: `tiling`
 ```
-olivar tiling olvr-file [--output <string>] [--title <string>] [--max-amp-len <int>] 
+olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <int>] 
 [--min-amp-len <int>] [--w-egc <float>] [--w-lc <float>] [--w-ns <float>] [--w-var <float>] 
 [--temperature <float>] [--salinity <float>] [--dg-max <float>] [--min-gc <float>] 
 [--max-gc <float>] [--min-complexity <float>] [--max-len <int>] [--check-var] 
@@ -146,7 +149,7 @@ olivar tiling olvr-file [--output <string>] [--title <string>] [--max-amp-len <i
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
-| olvr-file| | Positional argument. Path to the Olivar reference file (.olvr).|
+| olvr-path| | Positional argument. Path to the Olivar reference file (.olvr), or the directory of reference files for multiple targets|
 |--output, -o| ./| Output path (output to current directory by default).|
 |--title, -t| olivar-design| Name of design.|
 |--max-amp-len| 420| Maximum amplicon length.|
