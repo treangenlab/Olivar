@@ -620,6 +620,7 @@ def optimize(all_plex_info, config):
         all_lc.append(learning_curve)
     
     print('Primer dimer optimization finished in %.3fs' % (time()-tik))
+    print()
     return all_plex_info, all_lc
 
 
@@ -914,21 +915,13 @@ def save(design_out, out_path: str):
     except KeyError:
         print('ARTIC/PrimalScheme format is not included in older versions of Olivar, skipped.')
 
-    #------------- Loss and SADDLE Loss -------------#
+    #------------- SADDLE Loss -------------#
     fig = make_subplots(
         rows=1, cols=2, 
         subplot_titles=('Primer dimer optimization (pool-1)', 
             'Primer dimer optimization (pool-2)')
     )
 
-    # fig.add_trace(
-    #     go.Scatter(
-    #         y=all_loss, 
-    #         line=dict(color='#1f77b4'), 
-    #         showlegend=False
-    #     ), 
-    #     row=1, col=1
-    # )
     fig.add_trace(
         go.Scatter(
             y=lc[0], 
@@ -946,28 +939,29 @@ def save(design_out, out_path: str):
         row=1, col=2
     )
 
-    #fig.update_xaxes(title_text='iterations (sorted)', row=1, col=1)
     fig.update_xaxes(title_text='iterations', row=1, col=1)
     fig.update_xaxes(title_text='iterations', row=1, col=2)
 
-    #fig.update_yaxes(title_text='Loss', type='log', row=1, col=1)
     fig.update_yaxes(title_text='SADDLE Loss', row=1, col=1)
     fig.update_yaxes(title_text='SADDLE Loss', row=1, col=2)
 
     # save html figure
-    save_path = os.path.join(out_path, '%s_Loss.html' % config['title'])
+    save_path = os.path.join(out_path, f'{config['title']}_SADDLE_Loss.html')
     with open(save_path, 'w') as f:
         f.write(plotly.io.to_html(fig))
-    print(f'Optimization plots saved as {save_path}')
-    #------------- Loss and SADDLE Loss -------------#
+    print(f'SADDLE optimization plot saved as {save_path}')
+    #------------- SADDLE Loss -------------#
 
     for ref_name, ref_info in all_ref_info.items():
+        print(f'Saving output files and figures for {ref_name}...')
+
         risk_arr = ref_info['risk_arr']
         gc_arr = ref_info['gc_arr']
         comp_arr = ref_info['comp_arr']
         hits_arr = ref_info['hits_arr']
         var_arr = ref_info['var_arr']
         seq_record = ref_info['seq_record']
+        all_loss = ref_info['all_loss']
 
         # save reference sequence
         save_path = os.path.join(out_path, '%s.fasta' % ref_name)
@@ -988,6 +982,27 @@ def save(design_out, out_path: str):
         save_path = os.path.join(out_path, '%s_risk.csv' % ref_name)
         risk.to_csv(save_path, index=False)
         print(f'Risk scores saved as {save_path}')
+
+        #------------- PDR Loss -------------#
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                y=all_loss, 
+                line=dict(color='#1f77b4'), 
+                showlegend=False
+            )
+        )
+        fig.update_layout(
+            title=f'Optimization of primer design regions (PDRs) for {ref_name}', 
+            xaxis_title='iterations (sorted)', 
+        )
+        fig.update_yaxes(title_text='Loss', type='log')
+        # save html figure
+        save_path = os.path.join(out_path, f'{ref_name}_PDR_Loss.html')
+        with open(save_path, 'w') as f:
+            f.write(plotly.io.to_html(fig))
+        print(f'PDR optimization plot saved as {save_path}')
+        #------------- PDR Loss -------------#
 
         #------------- risk array and primers -------------#
         # create figure
@@ -1142,6 +1157,7 @@ def save(design_out, out_path: str):
             f.write(plotly.io.to_html(fig))
         print(f'Risk and primer viewer saved as {save_path}')
         #------------- risk array and primers -------------#
+        print()
 
 
 def validate(primer_pool: str, pool: int, BLAST_db: str, out_path: str, 
