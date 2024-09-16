@@ -1,11 +1,5 @@
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/olivar/README.html)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/olivar/badges/downloads.svg)](https://anaconda.org/bioconda/olivar)
-
-# Olivar multiplex PCR tiling design
-
 ## Description
 Olivar is a Python software for multiplex PCR tiling design. Olivar first builds an index for each target of interest, incorporating undesired sequence features such as homologous regions, SNPs and extreme GC content. Olivar then designs tiled amplicons covering a single index or multiple indexes, and minimizes primer dimers with the [SADDLE](https://doi.org/10.1038/s41467-022-29500-4) algorithm. Olivar is published as an [article](https://doi.org/10.1038/s41467-024-49957-9) on Nature Communications. 
-![](Figures/Fig1.png)
 
 ## Web Interface
 
