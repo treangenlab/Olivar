@@ -75,13 +75,25 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         BLAST_db: Optional, path to the BLAST database. 
             Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").
         out_path: Output directory [./]. 
-        title: Name of the Olivar reference file [olivar-ref]. 
+        title: Name of the Olivar reference file [FASTA record ID]. 
         threads: Number of threads [1]. 
     '''
     n_cpu = threads
 
     if not os.path.exists(out_path):
         os.makedirs(out_path)
+    
+    # load the first record in fasta_path
+    print(f'Loading the first record of "{fasta_path}"')
+    for record in SeqIO.parse(fasta_path, 'fasta'):
+        seq_raw = str(record.seq).lower() # SNPs in upper case
+        break # read first record
+    seq_id = str(record.id) # ID of the fasta record (everything before the space character in the FASTA header)
+    if title is None:
+        title = seq_id
+    save_path = os.path.join(out_path, f'{title}{REFEXT}')
+    if os.path.exists(save_path):
+        raise FileExistsError(f'Olivar reference file already exists "{save_path}"')
 
     # all coordinates are 1-based and inclusive
     word_size = 28
@@ -94,6 +106,12 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
     else:
         n_cycle = int(n_cycle)
 
+
+    for record in SeqIO.parse(fasta_path, 'fasta'):
+        seq_raw = str(record.seq).lower() # SNPs in upper case
+        break # read first record
+    
+    
     for record in SeqIO.parse(fasta_path, 'fasta'):
         seq_raw = str(record.seq).lower() # SNPs in upper case
         break # read first record
@@ -147,6 +165,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
                 seq_raw[pos] = seq_raw[pos].upper()
         var_arr = var_arr**0.5 # amplify low frequency variants
         seq_raw = ''.join(seq_raw)
+        print(f'Variation coordinates and frequencies loaded from "{var_path}"')
     else:
         print('No sequence variation coordinates provided, skipped.')
 
@@ -170,7 +189,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         all_complexity = np.array(pool.map(basic.get_complexity, all_word))
         print('Finished in %.3fs' % (time()-tik))
     if BLAST_db:
-        print('Calculating non-specificity...')
+        print(f'Calculating non-specificity with BLAST database "{BLAST_db}"')
         all_hits, _ = BLAST_batch_short(all_word, db=BLAST_db, n_cpu=n_cpu, mode='rough') # tabular output
     else:
         print('No BLAST database provided, skipped.')
@@ -193,6 +212,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
 
     olv_ref = {
         'seq': seq_raw, 
+        'seq_id': seq_id, 
         'seq_record': record, 
         'start': start, 
         'stop': stop, 
@@ -202,7 +222,6 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         'hits_arr': hits_arr, 
         'all_hits': all_hits
     }
-    save_path = os.path.join(out_path, f'{title}{REFEXT}')
     with open(save_path, 'wb') as f:
         pickle.dump(olv_ref, f, protocol=5) # protocol 5 needs python>=3.8
         print('Reference file saved as %s' % save_path)
@@ -314,6 +333,7 @@ def design_context_seq(config):
         olv_ref = pickle.load(f)
 
     seq_raw = olv_ref['seq'] # SNPs are capitalized in build()
+    seq_id = olv_ref['seq_id'] # ID of the fasta record (everything before the space character in the FASTA header)
     start = olv_ref['start'] # start of design region, 1-based, closed
     stop = olv_ref['stop'] # stop of design region, 1-based, closed
     gc_arr = olv_ref['gc_arr']
@@ -382,7 +402,7 @@ def design_context_seq(config):
     for i, (context_seq, risk) in enumerate(zip(all_context_seq, all_risk)):
         cs = seq_raw[context_seq[0]-1:context_seq[3]] # actual context sequence
         plex_info = {
-            'reference': config['title'], 
+            'reference': seq_id, 
             'tube': i%2 + 1, 
             'context_seq_coords': (context_seq[0], context_seq[3]), 
             'primers_coords': tuple(context_seq), 
@@ -393,7 +413,7 @@ def design_context_seq(config):
             'rP_design': basic.revcomp(seq_raw[context_seq[2]-1:context_seq[3]]), 
             'risk': tuple(risk)
         }
-        all_plex_info['%s_%d' % (config['title'], i+1)] = plex_info
+        all_plex_info['%s_%d' % (seq_id, i+1)] = plex_info
     print('total amplicons: %d' % (i+1))
     cover_start = all_context_seq[0][1]+1
     cover_stop = all_context_seq[-1][2]-1
@@ -710,7 +730,7 @@ def to_df(all_plex_info, config):
         art_genome.extend([plex_info['reference'], plex_info['reference']])
         art_start.extend([curr_start-1, curr_insert_end])
         art_stop.extend([curr_insert_start-1, curr_end])
-        art_primer_name.extend([plex_id+'_LEFT', plex_id+'_RIGHT'])
+        art_primer_name.extend([plex_id+'_LEFT_1', plex_id+'_RIGHT_1'])
         art_pool.extend([plex_info['tube'], plex_info['tube']])
         art_strand.extend(['+', '-'])
         art_primer_seq.extend([curr_fp_seq.upper(), curr_rp_seq.upper()])
@@ -804,7 +824,6 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         os.makedirs(config['out_path'])
 
     # store config values
-    design_title = config['title']
     design_ref_path = config['ref_path']
 
     # validate input .olvr file(s)
@@ -834,7 +853,6 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     all_plex_info = {}
     all_ref_info = {}
     for ref_name, ref_path in ref_path_dict.items():
-        config['title'] = ref_name
         config['ref_path'] = ref_path
         print(f'Designing PDRs for {ref_name} using {ref_path}...')
         temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
@@ -851,7 +869,6 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         print()
     
     # revert modified config values
-    config['title'] = design_title
     config['ref_path'] = design_ref_path
 
     all_plex_info_primer = get_primer(all_plex_info, config)
@@ -921,7 +938,7 @@ def save(design_out, out_path: str):
     # save ARTIC output format
     try:
         art_df = design_out['art_df']
-        save_path = os.path.join(out_path, '%s.scheme.bed' % config['title'])
+        save_path = os.path.join(out_path, '%s.primer.bed' % config['title'])
         art_df.sort_values(by='start', axis=0, ascending=True, inplace=True)
         art_df.to_csv(save_path, sep='\t', header=False, index=False)
         print(f'Primer pools (ARTIC format) saved as {save_path}')
