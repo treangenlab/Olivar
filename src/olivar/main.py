@@ -69,7 +69,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
     '''
     Build the Olivar reference file for tiled amplicon design
     Input:
-        fasta_path: Path to the fasta reference sequence.
+        fasta_path: Path to the FASTA reference sequence.
         var_path: Optional, path to the csv file of SNP coordinates and frequencies. 
             Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.
         BLAST_db: Optional, path to the BLAST database. 
