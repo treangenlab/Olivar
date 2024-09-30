@@ -95,7 +95,6 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
     if os.path.exists(save_path):
         raise FileExistsError(f'Olivar reference file already exists "{save_path}"')
 
-    # all coordinates are 1-based and inclusive
     word_size = 28
     offset = 14 # word_size should be divisible by offset
     print('Building Olivar reference with word_size=%d, offset=%d' % (word_size, offset))
@@ -105,16 +104,6 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         raise ValueError('word_size should be divisible by offset.')
     else:
         n_cycle = int(n_cycle)
-
-
-    for record in SeqIO.parse(fasta_path, 'fasta'):
-        seq_raw = str(record.seq).lower() # SNPs in upper case
-        break # read first record
-    
-    
-    for record in SeqIO.parse(fasta_path, 'fasta'):
-        seq_raw = str(record.seq).lower() # SNPs in upper case
-        break # read first record
     
     # check ambiguous bases
     ambiguous_bases = set(seq_raw) - {'a', 't', 'c', 'g'}
@@ -122,6 +111,7 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
         raise ValueError(f'Ambiguous bases are not supported. {ambiguous_bases} found in reference fasta file.')
 
     # load SNP/iSNV coordinates
+    # all coordinates are 1-based and inclusive
     var_arr = np.zeros(len(seq_raw))
     if var_path:
         seq_raw = list(seq_raw)
