@@ -59,7 +59,7 @@ conda create -n olivar olivar=1.1.5 blast=2.13.0 numpy=1 --channel conda-forge -
  - (Optional) A BLAST database of non-specific sequences. More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database).
 
 > [!NOTE]
-> Coordinates are always 1-based, closed intervals, except fot the output `.scheme.bed` file, which is in [BED format](https://samtools.github.io/hts-specs/BEDv1.pdf). 
+> Coordinates are always 1-based, closed intervals, except fot the output `.primer.bed` file, which is in [BED format](https://samtools.github.io/hts-specs/BEDv1.pdf). 
 
 ### Command-line interface
 
