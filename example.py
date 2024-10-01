@@ -7,7 +7,7 @@ from olivar import build, tiling, save, validate
 
 if __name__ == "__main__":
     build(
-        fasta_path = 'example_input/EPI_ISL_402124.fasta', # Path to the fasta reference sequence.
+        fasta_path = 'example_input/EPI_ISL_402124.fasta', # Path to the FASTA reference sequence.
 
         var_path = 'example_input/delta_omicron_loc.csv', # Optional, path to the csv file of SNP coordinates and frequencies.
         # Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         # Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").
 
         out_path = './', # Output directory.
-        title = 'olivar-ref', # Name of the Olivar reference file [olivar-ref].
+        title = None, # Name of the Olivar reference file [FASTA record ID].
         threads = 1 # Number of threads.
     )
 

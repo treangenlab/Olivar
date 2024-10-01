@@ -1,5 +1,5 @@
 {
-    "ref_path": "example_output/olivar-ref.olvr",
+    "ref_path": "example_output/EPI_ISL_402124.olvr",
     "out_path": "example_output",
     "title": "olivar-design",
     "max_amp_len": 420,
@@ -19,5 +19,5 @@
     "fP_prefix": "",
     "rP_prefix": "",
     "seed": 10,
-    "threads": 48
+    "threads": 60
 }

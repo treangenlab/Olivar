@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="olivar",
-    version="1.2.0",
+    version="1.3.0",
     author="Michael X. Wang",
     author_email="xw66@rice.edu",
     description="Olivar PCR tiling design",

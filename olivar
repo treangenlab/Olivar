@@ -3,7 +3,7 @@
 
 
 __author__ = 'Michael X. Wang'
-__version__ = '1.2.0'
+__version__ = '1.3.0'
 
 
 import argparse
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     build_parser = subparsers.add_parser('build', help='Build Olivar design reference.')
     build_parser.add_argument(
         'fasta_path', type=str, metavar='fasta-file', 
-        help='Path to the fasta reference sequence.')
+        help='Path to the FASTA reference sequence.')
     build_parser.add_argument(
         '--var', '-v', type=str, default=None, metavar='<string>', 
         help='Optional, path to the csv file of SNP coordinates and frequencies. Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.')
@@ -30,8 +30,8 @@ if __name__ == "__main__":
         '--output', '-o', type=str, default='./', metavar='<string>', 
         help='Output directory (output to current directory by default).')
     build_parser.add_argument(
-        '--title', '-t', type=str, default='olivar-ref', metavar='<string>', 
-        help='Name of the Olivar reference file [olivar-ref].')
+        '--title', '-t', type=str, default=None, metavar='<string>', 
+        help='Name of the Olivar reference file [FASTA record ID].')
     build_parser.add_argument(
         '--threads', '-p', type=int, default=1, metavar='<int>', 
         help='Number of threads [1].')
