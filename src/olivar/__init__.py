@@ -11,7 +11,7 @@ Olivar also optimize for primer dimers with the SADDLE algorithm (https://www.na
 
 
 __author__ = 'Michael X. Wang'
-__version__ = '1.3.0'
+__version__ = '1.2.1'
 
 
 import os
