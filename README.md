@@ -33,7 +33,7 @@ olivar --help
 python >=3.8
 blast >=2.12.0
 biopython
-numpy
+numpy <2
 pandas
 plotly >=5.13.0
 tqdm
