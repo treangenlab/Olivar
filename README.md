@@ -43,9 +43,10 @@ tqdm
 
 To reproduce the results in [example_output](example_output/) (primers used in the [publication](https://doi.org/10.1038/s41467-024-49957-9)), specify package versions during installation and run [example.py](example.py).
 ```
-conda create -n olivar olivar=1.1.5 blast=2.13.0 numpy=1 --channel conda-forge --channel bioconda --channel defaults --strict-channel-priority
+conda create -n olivar olivar=1.1.5 blast=2.13.0 numpy=1 --channel conda-forge --channel bioconda --strict-channel-priority
 ```
-[Git LFS](https://git-lfs.com/) is needed to clone the [example BLAST database](example_input/Human). 
+> [!CAUTION]
+> [Git LFS](https://git-lfs.com/) is needed to clone the [example BLAST database](example_input/Human). Without Git LFS, `blastn` won't run on the incomplete example BLAST database and Olivar will raise `IndexError: list index out of range`. 
 
 
 ## Usage
@@ -104,7 +105,7 @@ Output files in step 2 can be generated repeatedly as long as the Olivar deisng 
 ```
 olivar save example_output/olivar-design.olvd -o example_output
 ```
-> [!WARNING]  
+> [!WARNING]
 > .olvr and .olvd files are generated with [pickle](https://docs.python.org/3/library/pickle.html). Do NOT load those files from untrusted sources.
 
 #### (Optional) Validate existing primer pools
