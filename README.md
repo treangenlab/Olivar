@@ -80,7 +80,7 @@ If you have multiple targets, run `olivar build` on each FASTA file and place al
 > In this step, the input reference sequence is chopped into kmers, and GC content, sequence complexity and BLAST hits are calculated for each kmer. Sequence variations are also labeled if coordinates are provided. A risk score is assigned to each nucleotide of the reference sequence, guiding the placement of primer design regions. 
 
 #### 2. Design tiled amplicons
-Input a single Olivar reference file generated in step 1, or a directory of multiple `.olvr` files. Set random seed (`--seed`) to make the results reproducible. Use multiple CPU cores (`-p`) to accelerate this process. Output files are listed below (coordinates are 1-based). 
+Input a single Olivar reference file generated in step 1, or a directory of multiple `.olvr` files (needs version ≥ 1.2). Set random seed (`--seed`) to make the results reproducible. Use multiple CPU cores (`-p`) to accelerate this process. Output files are listed below (coordinates are 1-based). 
 ```
 olivar tiling example_output/EPI_ISL_402124.olvr -o example_output --max-amp-len 420 --min-amp-len 252 --check-var --seed 10 -p 1
 ```
