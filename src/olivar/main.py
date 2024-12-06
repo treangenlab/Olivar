@@ -7,6 +7,7 @@ Main workflow of Olivar tiling.
 Architecture:
 main.py
     build()
+        run_build()
     tiling()
         design_context_seq()
             generate_context()
@@ -15,7 +16,8 @@ main.py
         optimize()
         to_df()
         tiling_save()
-    validate()
+    specificity()
+    sensitivity()
 '''
 
 
@@ -39,6 +41,7 @@ import numpy as np
 from numpy.random import rand, default_rng
 from tqdm import tqdm
 
+
 from Bio import SeqIO
 
 import plotly
@@ -50,6 +53,7 @@ import basic
 import design # SADDLE
 from ncbi_tools import BLAST_batch_short, ns_simulation
 from design import PrimerSetBadnessFast
+from msa_tools import run_validate, run_preprocess, run_cmd
 
 N_POOLS = 2 # number of primer pool (not to be changed)
 
@@ -64,8 +68,47 @@ RISK_TH = 0.1 # top RISK_TH highest risk primer design regions are considered as
 REFEXT = '.olvr' # extension for Olivar reference file
 DESIGNEXT = '.olvd' # extension for Olivar design file
 
+def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int, align: int):
+    '''
+    Build the Olivar reference file for tiled amplicon design, handling gaps in the MSA.
+    Input:
+        fasta_path: Optional, Path to the FASTA reference sequence.
+        msa_path: Optional, Path to the MSA file (Multiple Sequence Alignment in FASTA format).
+        var_path: Optional, path to the CSV file of SNP coordinates and frequencies. 
+            Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.
+        BLAST_db: Optional, path to the BLAST database. 
+        out_path: Output directory [./]. 
+        title: Name of the Olivar reference file [MSA record ID]. 
+        threads: Number of threads [1]. 
+    '''
+    if not msa_path and not var_path:
+        raise ValueError("Either 'msa_path' or 'var_path' must be provided.")
 
-def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int):
+    if msa_path:
+        if var_path:
+            print("Warning: Both 'msa_path' and 'var_path' provided. Ignoring 'var_path' and processing with MSA + BLAST.")
+        if not os.path.exists(msa_path):
+            raise FileNotFoundError(f"MSA file '{msa_path}' not found.")
+        var_path = None
+        # Perform alignment if requested
+        if bool(align):
+            print("Running alignment with MAFFT...")
+            msa_str = run_cmd('mafft', '--auto', '--thread', str(threads), msa_path)
+            msa_path = os.path.join(os.path.dirname(msa_path), 'aligned_msa.fasta')
+            print(f'storing aligned msa to:{msa_path}')
+            with open(msa_path, 'w') as f:
+                f.write(msa_str)
+        fasta_path, var_path = run_preprocess(msa_path, out_path, threads)
+    else:
+        if not fasta_path:
+            raise ValueError("'fasta_path' must be provided when using 'var_path'.")
+        if not os.path.exists(var_path):
+            raise FileNotFoundError(f"VAR file '{var_path}' not found.")
+        if not os.path.exists(fasta_path):
+            raise FileNotFoundError(f"FASTA file '{fasta_path}' not found.")
+    run_build(fasta_path, var_path, BLAST_db, out_path, title, threads)
+
+def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int):
     '''
     Build the Olivar reference file for tiled amplicon design
     Input:
@@ -215,7 +258,6 @@ def build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: s
     with open(save_path, 'wb') as f:
         pickle.dump(olv_ref, f, protocol=5) # protocol 5 needs python>=3.8
         print('Reference file saved as %s' % save_path)
-
 
 def find_min_loc(risk_arr, start, stop, rng):
     '''
@@ -966,7 +1008,7 @@ def save(design_out, out_path: str):
     fig.update_yaxes(title_text='SADDLE Loss', row=1, col=2)
 
     # save html figure
-    save_path = os.path.join(out_path, f'{config['title']}_SADDLE_Loss.html')
+    save_path = os.path.join(out_path, f"{config['title']}_SADDLE_Loss.html")
     with open(save_path, 'w') as f:
         f.write(plotly.io.to_html(fig))
     print(f'SADDLE optimization plot saved as {save_path}')
@@ -1180,7 +1222,7 @@ def save(design_out, out_path: str):
         print()
 
 
-def validate(primer_pool: str, pool: int, BLAST_db: str, out_path: str, 
+def specificity(primer_pool: str, pool: int, BLAST_db: str, out_path: str, 
     title: str, max_amp_len: int, temperature: float, threads: int):
     '''
     Run analysis on a primer pool for multiplex PCR
@@ -1250,3 +1292,20 @@ def validate(primer_pool: str, pool: int, BLAST_db: str, out_path: str,
     save_path = os.path.join(out_path, f'{title}_pool-{pool}.csv')
     df_val.to_csv(save_path, index=False)
     print('Validation file saved as %s' % save_path)
+
+def sensitivity(primer_pool: str, pool: int, msa_path: str, out_path: str, 
+    title: str, temperature: float=60.0, sodium: float=0.18, threads: int=1):
+    '''
+    Visualize an MSA, along with its primers/probes (if provided), and validate their alignment and sensitivity.
+    Input:
+        primer_pool: Path to the csv file of a primer pool. 
+            Required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).
+        pool: Primer pool number [1]. 
+        msa_path: Path to the MSA file.
+        out_path: Output directory [./]. 
+        title: Name of validation [olivar-val].
+        temperature: PCR annealing temperature [60.0]. 
+        sodium: The sum of the concentrations of monovalent ions (Na+, K+, NH4+), in molar [0.18].
+        threads: Number of threads [1]. 
+    '''
+    run_validate(msa_path = msa_path, primer_pool = primer_pool, pool = pool, temperature = temperature, sodium = sodium, out_path = out_path, title = title, n_cpu = threads)
