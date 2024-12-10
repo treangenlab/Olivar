@@ -1,0 +1,23 @@
+{
+    "ref_path": "example_output/aligned_msa.olvr",
+    "out_path": "example_output",
+    "title": "olivar-design",
+    "max_amp_len": 420,
+    "min_amp_len": 252,
+    "w_egc": 1.0,
+    "w_lc": 1.0,
+    "w_ns": 1.0,
+    "w_var": 1.0,
+    "temperature": 60.0,
+    "salinity": 0.18,
+    "dG_max": -11.8,
+    "min_GC": 0.2,
+    "max_GC": 0.75,
+    "min_complexity": 0.4,
+    "max_len": 36,
+    "check_SNP": true,
+    "fP_prefix": "",
+    "rP_prefix": "",
+    "seed": 10,
+    "threads": 1
+}
