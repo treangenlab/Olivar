@@ -120,7 +120,7 @@ if __name__ == "__main__":
         help='Output path (output to current directory by default).')
 
     # specificity
-    specificity_parser = subparsers.add_parser('specificity', help='Specificity existing multiplexed PCR primers.')
+    specificity_parser = subparsers.add_parser('specificity', help='Specify existing multiplexed PCR primers.')
     specificity_parser.add_argument(
         'primer_pool', type=str, metavar='csv-file', 
         help='Path to the csv file of a primer pool. Required columns: "amp_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer).')
