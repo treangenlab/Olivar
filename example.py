@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from olivar import build, tiling, save, validate
-
+from olivar import build, tiling, save, specificity, sensitivity
 
 if __name__ == "__main__":
     build(
@@ -58,7 +57,7 @@ if __name__ == "__main__":
     # )
 
 
-    validate(
+    specificity(
         primer_pool = 'example_output/olivar-design.csv', # Path to the csv file of a primer pool. 
         # Required columns: "amp_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).
 
@@ -76,7 +75,7 @@ if __name__ == "__main__":
     )
 
 
-    validate(
+    specificity(
         primer_pool = 'example_output/olivar-design.csv', # Path to the csv file of a primer pool. 
         # Required columns: "amp_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).
 
