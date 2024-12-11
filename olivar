@@ -246,5 +246,5 @@ if __name__ == "__main__":
         )
 
     else:
-        print('A sub-command needs to be specified (build, tiling, save, specificity).')
+        print('A sub-command needs to be specified (build, tiling, save, specificity, sensitivity).')
         print("Use '--help' to print detailed descriptions of command line arguments")
