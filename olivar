@@ -7,9 +7,7 @@ __version__ = '1.2.1'
 
 
 import argparse
-#from olivar import build, tiling, save, specificity, sensitivity
-from src.olivar.main import build, tiling, save, specificity, sensitivity
-
+from olivar import build, tiling, save, specificity, sensitivity
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -122,7 +120,7 @@ if __name__ == "__main__":
         help='Output path (output to current directory by default).')
 
     # specificity
-    specificity_parser = subparsers.add_parser('specificity', help='specificity existing multiplexed PCR primers.')
+    specificity_parser = subparsers.add_parser('specificity', help='Specificity existing multiplexed PCR primers.')
     specificity_parser.add_argument(
         'primer_pool', type=str, metavar='csv-file', 
         help='Path to the csv file of a primer pool. Required columns: "amp_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer).')
