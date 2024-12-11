@@ -19,4 +19,4 @@ import sys
 CURRENT_DIR = os.path.dirname(__file__)
 sys.path.append(CURRENT_DIR)
 
-from main import build, tiling, save, validate
+from main import build, tiling, save, specificity, sensitivity
