@@ -1007,7 +1007,7 @@ def save(design_out, out_path: str):
     fig.update_yaxes(title_text='SADDLE Loss', row=1, col=2)
 
     # save html figure
-    save_path = os.path.join(out_path, f'{config['title']}_SADDLE_Loss.html')
+    save_path = os.path.join(out_path, f"{config['title']}_SADDLE_Loss.html")
     with open(save_path, 'w') as f:
         f.write(plotly.io.to_html(fig))
     print(f'SADDLE optimization plot saved as {save_path}')
