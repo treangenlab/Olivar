@@ -739,7 +739,7 @@ def run_validate(msa_path: str, primer_pool: str, pool: int, out_path: str, titl
     with open(os.path.join(out_path, f'{title}_pool-{pool}.out'), 'w') as f:
         f.write(out_text)
         SeqIO.write(consensus_record, f, 'fasta')
-    msa.plot(os.path.join(out_path, title + '.html'))
+    msa.plot(os.path.join(out_path, title + f'_pool-{pool}.html'))
 
 def run_preprocess(msa_path: str, prefix: str|None=None, n_cpu: int=1):
     if prefix is None:
