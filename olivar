@@ -134,8 +134,8 @@ if __name__ == "__main__":
         '--output', '-o', type=str, default='./', metavar='<string>', 
         help='Output path (output to current directory by default).')
     specificity_parser.add_argument(
-        '--title', '-t', type=str, default='olivar-val', metavar='<string>', 
-        help='Name of validation [olivar-val].')
+        '--title', '-t', type=str, default='olivar-specificity', metavar='<string>', 
+        help='Name of validation [olivar-specificity].')
     specificity_parser.add_argument(
         '--max-amp-len', type=int, default=1500, metavar='<int>', 
         help='Maximum length of predicted non-specific amplicon [1500]. Ignored is no BLAST database is provided.')
@@ -170,8 +170,8 @@ if __name__ == "__main__":
         '--output', '-o', type=str, default='./', metavar='<string>', 
         help='Output path (output to current directory by default).')
     sensitivity_parser.add_argument(
-        '--title', '-t', type=str, default='olivar-val', metavar='<string>', 
-        help='Name of validation [olivar-val].')
+        '--title', '-t', type=str, default='olivar-sensitivity', metavar='<string>', 
+        help='Name of validation [olivar-sensitivity].')
     sensitivity_parser.add_argument(
         '--threads', '-p', type=int, default=1, metavar='<int>', 
         help='Number of threads [1].')
