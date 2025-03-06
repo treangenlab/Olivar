@@ -76,15 +76,15 @@ Olivar CLI comprises of four sub-commands: `build`, `tiling`, `save`, `specifici
 #### 1. Build Olivar reference
 Olivar supports two input modes:
 * **Mode 1: Using a MSA file:** A MSA file in FASTA format is required, BLAST database is optional. The first FASTA record is considered as the reference.
-```
-olivar build -m example_input/H1N1-HA.fasta -o example_output -p 1
-```
+    ```
+    olivar build -m example_input/H1N1-HA.fasta -o example_output -p 1
+    ```
 
 * **Mode 2: Using a reference sequence:** A reference sequence in FASTA format is required, coordinates of sequence variations and BLAST database are optional. Only the first FASTA record is considered. 
-```
-olivar build example_input/EPI_ISL_402124.fasta -v example_input/delta_omicron_loc.csv -d example_input/Human/GRCh38_primary -o example_output -p 1
-```
-An Olivar reference file ([EPI_ISL_402124.olvr](example_output/EPI_ISL_402124.olvr)) will be generated, named by the ID of the FASTA record by default. Use multiple CPU cores (`-p`) to accelerate this process. 
+    ```
+    olivar build example_input/EPI_ISL_402124.fasta -v example_input/delta_omicron_loc.csv -d example_input/Human/GRCh38_primary -o example_output -p 1
+    ```
+    An Olivar reference file ([EPI_ISL_402124.olvr](example_output/EPI_ISL_402124.olvr)) will be generated, named by the ID of the FASTA record by default. Use multiple CPU cores (`-p`) to accelerate this process. 
 
 If you have multiple targets, run `olivar build` on each FASTA file and place all output `.olvr` files in the same directory. 
 
