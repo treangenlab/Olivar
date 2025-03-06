@@ -104,7 +104,7 @@ olivar tiling example_output/EPI_ISL_402124.olvr -o example_output --max-amp-len
 | olivar-design.primer.bed| Primer sequences and coordinates in [ARTIC/PrimalScheme](https://github.com/artic-network/primer-schemes/tree/master/nCoV-2019) (BED) format. |
 | olivar-design_SADDLE_Loss.html| Learning curve for primer dimer optimization. |
 | olivar-design.json| Design configurations. |
-| EPI_ISL_402124.fasta| Reference sequence. |
+| EPI_ISL_402124_ref.fasta| Reference sequence. |
 | EPI_ISL_402124.html| An interactive plot to view primers and the risk array. |
 | EPI_ISL_402124_PDR_Loss.html| Learning curve for PDR optimization. |
 | EPI_ISL_402124_risk.csv| Risk scores of each risk component. |
