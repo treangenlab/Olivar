@@ -32,6 +32,7 @@ olivar --help
 ```
 python >=3.8
 blast >=2.12.0
+mafft
 biopython
 numpy <2
 pandas
