@@ -162,7 +162,7 @@ Refer to [example.py](example.py) for more details.
 #### sub-command: `build`
 ```
 olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>] 
-[--output <string>] [--title <string>] [--threads <int>] [--align <int>]
+[--output <string>] [--title <string>] [--threads <int>] [--align]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
