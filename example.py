@@ -67,7 +67,7 @@ if __name__ == "__main__":
         # Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").
         
         out_path = './', # Output directory. 
-        title = 'olivar-speci', # Name of validation.
+        title = 'olivar-specificity', # Name of validation.
 
         max_amp_len = 1500, # Maximum length of predicted non-specific amplicon [1500].
         temperature = 60, # PCR annealing temperature [60.0].
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         # Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").
         
         out_path = './', # Output directory. 
-        title = 'olivar-speci', # Name of validation.
+        title = 'olivar-specificity', # Name of validation.
 
         max_amp_len = 1500, # Maximum length of predicted non-specific amplicon [1500].
         temperature = 60, # PCR annealing temperature [60.0].
