@@ -104,7 +104,7 @@ olivar tiling example_output/EPI_ISL_402124.olvr -o example_output --max-amp-len
 | olivar-design.primer.bed| Primer sequences and coordinates in [ARTIC/PrimalScheme](https://github.com/artic-network/primer-schemes/tree/master/nCoV-2019) (BED) format. |
 | olivar-design_SADDLE_Loss.html| Learning curve for primer dimer optimization. |
 | olivar-design.json| Design configurations. |
-| EPI_ISL_402124.fasta| Reference sequence. |
+| EPI_ISL_402124_ref.fasta| Reference sequence. |
 | EPI_ISL_402124.html| An interactive plot to view primers and the risk array. |
 | EPI_ISL_402124_PDR_Loss.html| Learning curve for PDR optimization. |
 | EPI_ISL_402124_risk.csv| Risk scores of each risk component. |
@@ -137,7 +137,7 @@ olivar specificity example_output/olivar-design.csv --pool 1 -d example_input/Hu
 
 #### (Optional) Check sensitivity of existing primer pools against an MSA of target sequences
  - Input should be a CSV file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. 
- - An MSA of target sequences is required.
+ - An MSA of target sequences is required. 
  - Use multiple CPU cores (`-p`) to accelerate this process. 
  - Output files are listed below (coordinates are 1-based). 
 ```
@@ -146,7 +146,7 @@ olivar sensitivity example_output/olivar-design.csv -m example_input/H1N1-HA.fas
 | Default name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :-------- | 
 | olivar-sensitivity_pool-1.out| A report of each single primer, including GC content, dG, primer alignment, and sensitivity score. |
-| olivar-sensitivity_pool-1.html| An interactive plot to view primers and the sensitivity scores, along with the risk array. |
+| olivar-sensitivity_pool-1.html| An interactive plot to view primers and the MSA. |
 
 
 ### Import Olivar as a Python package
