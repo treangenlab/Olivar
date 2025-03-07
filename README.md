@@ -17,7 +17,7 @@ A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), alt
 
 #### 2. Create a new Conda environment named "olivar" and install Olivar via Bioconda
 ```
-conda create -n olivar olivar --channel conda-forge --channel bioconda --channel defaults --strict-channel-priority
+conda create -n olivar olivar --channel conda-forge --channel bioconda --strict-channel-priority
 ```
 > [!TIP]
 > Setting channel priority is important for Bioconda packages to function properly. You may also persist channel priority settings for all package installation by modifying your `~/.condarc` file. For more information, check the [Bioconda documentation](https://bioconda.github.io/). 
