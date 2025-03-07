@@ -78,7 +78,7 @@ Use one of the two input modes to build the reference
 
 * **Mode 1:** A MSA (or a group of unaligned sequences) in FASTA format is required, BLAST database is optional. If the sequences are not aligned, add the `--align` option to make the MSA. 
     ```
-    olivar build -m example_input/H1N1-HA.fasta -o example_output -p 1
+    olivar build -m example_input/H1N1-HA.fasta -o example_output -p 1 -a 1
     ```
 
 * **Mode 2:** A reference sequence in FASTA format is required, coordinates of sequence variations and BLAST database are optional. Only the first FASTA record is considered. 
