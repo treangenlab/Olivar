@@ -52,39 +52,41 @@ conda create -n olivar olivar=1.1.5 blast=2.13.0 numpy=1 --channel conda-forge -
 ## Usage
 
 ### Input files
-Olivar supports two input modes:  
-*  A multiple sequence alignment (MSA) file in FASTA format is required. A BLAST database is optional. The first FASTA record is considered the reference.  
-* A reference sequence in FASTA format is required, coordinates of sequence variations and BLAST database are optional. Only the first FASTA record is considered. 
+Olivar supports two input modes: 1) multiple sequence alignment (MSA), 2) reference sequence and an optional list of variations. 
+Both modes could also take an optional BLAST database of non-specific sequences. [How to prepare a BLAST database?](#Prepare-a-BLAST-database).
 
-    - **(Required by mode 1)** A MSA file that contains all sequences in FASTA format ([example](example_input/H1N1-HA.fasta)). The first record is treated as the reference sequence.
+#### Mode 1
+ - (Required) An MSA for each target for tiling (or a group of unaligned sequences) in FASTA format ([example](example_input/H1N1-HA.fasta)). 
+ - (Optional) A BLAST database of non-specific sequences. 
 
-    - **(Required by mode 2)** Reference sequence for each target for tiling, in FASTA format ([example](example_input/EPI_ISL_402124.fasta)). Ambiguous bases are not supported and may raise errors. 
-
-    - (Optional) A list of sequence variations to be avoided for each reference, in csv format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
-
-    - (Optional) A BLAST database of non-specific sequences. More details can be found in [Prepare a BLAST database](#Prepare-a-BLAST-database).
+#### Mode 2
+ - (Required) Reference sequence for each target for tiling, in FASTA format ([example](example_input/EPI_ISL_402124.fasta)). Ambiguous bases are not supported and may raise errors. 
+ - (Optional) A list of sequence variations to be avoided for each reference, in CSV format ([example](example_input/delta_omicron_loc.csv)). Column "START" and "STOP" are required, "FREQ" is considered as 1.0 if empty. Other columns are not required. Coordinates are 1-based. 
+ - (Optional) A BLAST database of non-specific sequences. 
 
 > [!NOTE]
 > Coordinates are always 1-based, closed intervals, except fot the output `.primer.bed` file, which is in [BED format](https://samtools.github.io/hts-specs/BEDv1.pdf). 
 
 ### Command-line interface
 
-Olivar CLI comprises of four sub-commands: `build`, `tiling`, `save`, `specificity` and `sensitivity`. Descriptions of command-line arguments can be found in [Command-line parameters](#command-line-parameters). 
+Olivar CLI comprises of five sub-commands: `build`, `tiling`, `save`, `specificity` and `sensitivity`. Descriptions of command-line arguments can be found in [Command-line parameters](#command-line-parameters). 
 > [!TIP]
-> `build`, `tiling`, `specificity` and `sensitivity` support multiprocessing with `-p` option. 
+> Most sub-commands support multiprocessing with the `-p` option. 
 
 #### 1. Build Olivar reference
-Olivar supports two input modes:
-* **Mode 1: Using a MSA file:** A MSA file in FASTA format is required, BLAST database is optional. The first FASTA record is considered as the reference.
+Use one of the two input modes to build the reference
+
+* **Mode 1:** A MSA (or a group of unaligned sequences) in FASTA format is required, BLAST database is optional. If the sequences are not aligned, add the `--align` option to make the MSA. 
     ```
     olivar build -m example_input/H1N1-HA.fasta -o example_output -p 1
     ```
 
-* **Mode 2: Using a reference sequence:** A reference sequence in FASTA format is required, coordinates of sequence variations and BLAST database are optional. Only the first FASTA record is considered. 
+* **Mode 2:** A reference sequence in FASTA format is required, coordinates of sequence variations and BLAST database are optional. Only the first FASTA record is considered. 
     ```
     olivar build example_input/EPI_ISL_402124.fasta -v example_input/delta_omicron_loc.csv -d example_input/Human/GRCh38_primary -o example_output -p 1
     ```
-    An Olivar reference file ([EPI_ISL_402124.olvr](example_output/EPI_ISL_402124.olvr)) will be generated, named by the ID of the FASTA record by default. Use multiple CPU cores (`-p`) to accelerate this process. 
+
+An Olivar reference file ([EPI_ISL_402124.olvr](example_output/EPI_ISL_402124.olvr)) will be generated, named by the ID of the FASTA record by default. Use multiple CPU cores (`-p`) to accelerate this process. 
 
 If you have multiple targets, run `olivar build` on each FASTA file and place all output `.olvr` files in the same directory. 
 
@@ -102,7 +104,7 @@ olivar tiling example_output/EPI_ISL_402124.olvr -o example_output --max-amp-len
 | olivar-design.primer.bed| Primer sequences and coordinates in [ARTIC/PrimalScheme](https://github.com/artic-network/primer-schemes/tree/master/nCoV-2019) (BED) format. |
 | olivar-design_SADDLE_Loss.html| Learning curve for primer dimer optimization. |
 | olivar-design.json| Design configurations. |
-| EPI_ISL_402124_ref.fasta| Reference sequence. |
+| EPI_ISL_402124.fasta| Reference sequence. |
 | EPI_ISL_402124.html| An interactive plot to view primers and the risk array. |
 | EPI_ISL_402124_PDR_Loss.html| Learning curve for PDR optimization. |
 | EPI_ISL_402124_risk.csv| Risk scores of each risk component. |
@@ -119,8 +121,11 @@ olivar save example_output/olivar-design.olvd -o example_output
 > [!WARNING]
 > .olvr and .olvd files are generated with [pickle](https://docs.python.org/3/library/pickle.html). Do NOT load those files from untrusted sources.
 
-#### (Optional) Specificity of existing primer pools
-Input should be a csv file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. Output files are listed below (coordinates are 1-based). Use multiple CPU cores (`-p`) to accelerate this process. 
+#### (Optional) Check the specificity of existing primer pools against a BLAST database of non-spefic sequences
+ - Input should be a CSV file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. 
+ - If a BLAST database is not provided, only basic information of each primer is output.
+ - Use multiple CPU cores (`-p`) to accelerate this process. 
+ - Output files are listed below (coordinates are 1-based). 
 ```
 olivar specificity example_output/olivar-design.csv --pool 1 -d example_input/Human/GRCh38_primary -o example_output -p 1
 ```
@@ -130,20 +135,17 @@ olivar specificity example_output/olivar-design.csv --pool 1 -d example_input/Hu
 | olivar-specificity_pool-1_ns-amp.csv| Predicted non-specific amplicons. |
 | olivar-specificity_pool-1_ns-pair.csv| Predicted non-specific primer pairs. |
 
-#### (Optional) Sensitivity of existing primer pools
-Sensitivity calculation requires two input files.
-
-The first input file should be a csv file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. 
-
-The second input should be a MSA file for sensitivity calculation.
-
-Output files are listed below (coordinates are 1-based). Use multiple CPU cores (`-p`) to accelerate this process. 
+#### (Optional) Check sensitivity of existing primer pools against an MSA of target sequences
+ - Input should be a CSV file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. 
+ - An MSA of target sequences is required.
+ - Use multiple CPU cores (`-p`) to accelerate this process. 
+ - Output files are listed below (coordinates are 1-based). 
 ```
-olivar sensitivity example_output/olivar-design.csv PATH_to_MSA_FILE --pool 1  -o example_output -p 1
+olivar sensitivity example_output/olivar-design.csv -m example_input/H1N1-HA.fasta --pool 1 -o example_output -p 1
 ```
 | Default name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :-------- | 
-| olivar-sensitivity_pool-1.out| A basic report on primer properties, including GC content, melting free energy (ΔG), primer-to-consensus alignment, and sensitivity scores. |
+| olivar-sensitivity_pool-1.out| A report of each single primer, including GC content, dG, primer alignment, and sensitivity score. |
 | olivar-sensitivity_pool-1.html| An interactive plot to view primers and the sensitivity scores, along with the risk array. |
 
 
@@ -166,12 +168,12 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 | :-------  | :----- | :-------- | 
 |--fasta, -f| **None**| Positional argument. Path to the FASTA reference sequence.|
 |--var, -v| **None**| Optional, path to the csv file of SNP coordinates and frequencies. Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.|
-|--msa, -m| **None**| Path to the MSA file in FASTA format.|
+|--msa, -m| **None**| Path to the MSA (or a group of unaligned sequences) in FASTA format.|
 |--db, -d| **None**| Optional, path to the BLAST database. Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").|
 |--output, -o| ./| Output directory (output to current directory by default).|
 |--title, -t| FASTA record ID| Name of the Olivar reference file.|
 |--threads, -p| 1| Number of threads.|
-|--align, -a| 1| Conrol whether do alignment or not. 0 means NO, all non-zero numbers mean YES.|
+|--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
 
 #### sub-command: `tiling`
 ```
@@ -199,9 +201,9 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--max-gc| 0.75| Maximum GC content of a primer.|
 |--min-complexity| 0.4| Minimum sequence complexity of a primer.|
 |--max-len| 36| Maximum length of a primer.|
-|--check-var| False| Boolean flag. Filter out primer candidates with variations within 5nt of 3' end. NOT recommended when a lot of variations are provided, since this would significantly reduce the number of primer candidates. |
-|--fp-prefix| None| Prefix of forward primer. Empty by default.|
-|--rp-prefix| None| Prefix of reverse primer. Empty by default.|
+|--check-var| N/A| Boolean flag. Filter out primer candidates with variations within 5nt of 3' end. NOT recommended when a lot of variations are provided, since this would significantly reduce the number of primer candidates. |
+|--fp-prefix| **None**| Prefix of forward primer. Empty by default.|
+|--rp-prefix| **None**| Prefix of reverse primer. Empty by default.|
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
 
@@ -223,7 +225,7 @@ olivar specificity csv-file [--pool <int>] [--db <string>] [--output <string>]
 | :-------  | :----- | :-------- | 
 | csv-file| | Positional argument. Path to the csv file of a primer pool. Required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).|
 |--pool| 1| Primer pool number. |
-|--db, -d| None| Optional, path to the BLAST database. Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").|
+|--db, -d| **None**| Optional, path to the BLAST database. Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").|
 |--output, -o| ./| Output directory (output to current directory by default).|
 |--title, -t| olivar-val| Name of validation.|
 |--max-amp-len| 1500| Maximum length of predicted non-specific amplicon. Ignored is no BLAST database is provided.|
@@ -232,14 +234,14 @@ olivar specificity csv-file [--pool <int>] [--db <string>] [--output <string>]
 
 #### sub-command: `sensitivity`
 ```
-olivar sensitivity csv-file msa-file [--pool <int>] [--temperature <float>] 
+olivar sensitivity csv-file [--pool <int>] [--msa <string>] [--temperature <float>] 
 [--sodium <float>] [--output <string>] [--title <string>] [--threads <int>]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
 | csv-file| | Positional argument. Path to the csv file of a primer pool. Required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).|
-| msa-file| | Path to the MSA file in FASTA format. |
-|--pool| 1| Primer pool number. |
+|--pool| 1| Primer pool number.|
+|--msa, -m| **None**| Path to the MSA in FASTA format.|
 |--temperature| 60.0| PCR annealing temperature.|
 |--sodium, -s| 0.18| The sum of the concentrations of monovalent ions (Na+, K+, NH4+), in molar [0.18].|
 |--output, -o| ./| Output directory (output to current directory by default).|
