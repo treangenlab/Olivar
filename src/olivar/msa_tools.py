@@ -689,7 +689,7 @@ class MSA(object):
             fig.write_html(f'{save_path}')
 
 
-def run_variant_call(msa_path: str, prefix: str|None=None, n_cpu: int=1) -> None:
+def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1) -> None:
     msa = MSA(msa_path, n_cpu)
     var_dict = msa.variant_call()
 
@@ -699,7 +699,6 @@ def run_variant_call(msa_path: str, prefix: str|None=None, n_cpu: int=1) -> None
     if not os.path.exists(prefix):
         os.makedirs(prefix)
     
-    msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
     consens_path = os.path.join(prefix, f'{msa_filename}_consensus.fasta')
     SeqIO.write(
         SeqRecord(Seq(msa.consensus), id=msa_filename, description='consensus sequence'), 
@@ -746,13 +745,12 @@ def run_validate(msa_path: str, primer_pool: str, pool: int, out_path: str, titl
         SeqIO.write(consensus_record, f, 'fasta')
     msa.plot(os.path.join(out_path, title + f'_pool-{pool}.html'))
 
-def run_preprocess(msa_path: str, prefix: str|None=None, n_cpu: int=1):
+def run_preprocess(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1):
     if prefix is None:
         prefix = msa_path
 
-    # get var_path
     logger.info("Running variant calling to extract consensus and SNPs...")
-    consens_path, var_path = run_variant_call(msa_path, prefix, n_cpu)
+    consens_path, var_path = run_variant_call(msa_path, msa_filename, prefix, n_cpu)
 
     return consens_path, var_path
 
@@ -811,6 +809,7 @@ if __name__ == '__main__':
     if args.subparser_name == 'snps':
         run_variant_call(
             msa_path=args.msa_path, 
+            msa_filename=args.msa_filename, 
             prefix=args.prefix, 
             n_cpu=args.threads
         )
@@ -828,4 +827,3 @@ if __name__ == '__main__':
     else:
         print('A sub-command needs to be specified (snps or validate).')
         print("Use '--help' to print detailed descriptions of command line arguments")
-        
