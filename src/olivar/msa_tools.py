@@ -695,6 +695,9 @@ def run_variant_call(msa_path: str, prefix: str|None=None, n_cpu: int=1) -> None
 
     if prefix is None:
         prefix = msa_path
+
+    if not os.path.exists(prefix):
+        os.makedirs(prefix)
     
     msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
     consens_path = os.path.join(prefix, f'{msa_filename}_consensus.fasta')
