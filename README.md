@@ -77,19 +77,18 @@ Olivar CLI comprises of five sub-commands: `build`, `tiling`, `save`, `specifici
 #### 1. Build Olivar reference
 Use one of the two input modes to build the reference
 
-* **Mode 1:** A MSA (or a group of unaligned sequences) in FASTA format is required, BLAST database is optional. If the sequences are not aligned, add the `--align` option to make the MSA. 
+* **Mode 1:** An MSA (or a group of unaligned sequences) in FASTA format is required, BLAST database is optional. If the sequences are not aligned, add the `--align` option to make the MSA. 
     ```
-    olivar build -m example_input/H1N1-HA.fasta -o example_output -p 1 -a 1
+    olivar build -m example_input/H1N1-HA.fasta -o example_output --align -p 1
     ```
 
 * **Mode 2:** A reference sequence in FASTA format is required, coordinates of sequence variations and BLAST database are optional. Only the first FASTA record is considered. 
     ```
     olivar build -f example_input/EPI_ISL_402124.fasta -v example_input/delta_omicron_loc.csv -d example_input/Human/GRCh38_primary -o example_output -p 1
     ```
+    An Olivar reference file ([EPI_ISL_402124.olvr](example_output/EPI_ISL_402124.olvr)) will be generated, named by the ID of the FASTA record by default. 
 
-An Olivar reference file ([EPI_ISL_402124.olvr](example_output/EPI_ISL_402124.olvr)) will be generated, named by the ID of the FASTA record by default. Use multiple CPU cores (`-p`) to accelerate this process. 
-
-If you have multiple targets, run `olivar build` on each FASTA file and place all output `.olvr` files in the same directory. 
+If you have multiple targets, run `olivar build` on each FASTA file and place all output `.olvr` files in the same directory. Use multiple CPU cores (`-p`) to accelerate this process. 
 
 > In this step, the input reference sequence is chopped into kmers, and GC content, sequence complexity and BLAST hits are calculated for each kmer. Sequence variations are also labeled if coordinates are provided. A risk score is assigned to each nucleotide of the reference sequence, guiding the placement of primer design regions. 
 
