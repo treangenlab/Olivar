@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from olivar import build, tiling, save, validate
-
+from olivar import build, tiling, save, specificity, sensitivity
 
 if __name__ == "__main__":
     build(
@@ -58,7 +57,7 @@ if __name__ == "__main__":
     # )
 
 
-    validate(
+    specificity(
         primer_pool = 'example_output/olivar-design.csv', # Path to the csv file of a primer pool. 
         # Required columns: "amp_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).
 
@@ -68,7 +67,7 @@ if __name__ == "__main__":
         # Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").
         
         out_path = './', # Output directory. 
-        title = 'olivar-val', # Name of validation.
+        title = 'olivar-specificity', # Name of validation.
 
         max_amp_len = 1500, # Maximum length of predicted non-specific amplicon [1500].
         temperature = 60, # PCR annealing temperature [60.0].
@@ -76,7 +75,7 @@ if __name__ == "__main__":
     )
 
 
-    validate(
+    specificity(
         primer_pool = 'example_output/olivar-design.csv', # Path to the csv file of a primer pool. 
         # Required columns: "amp_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer), "pool" (pool number, e.g., 1).
 
@@ -86,7 +85,7 @@ if __name__ == "__main__":
         # Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").
         
         out_path = './', # Output directory. 
-        title = 'olivar-val', # Name of validation.
+        title = 'olivar-specificity', # Name of validation.
 
         max_amp_len = 1500, # Maximum length of predicted non-specific amplicon [1500].
         temperature = 60, # PCR annealing temperature [60.0].
