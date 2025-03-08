@@ -93,11 +93,9 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         # Perform alignment if requested
         if align:
             print("Running alignment with MAFFT...")
+            msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
             msa_str = run_cmd('mafft', '--auto', '--thread', str(threads), msa_path)
-
-            with open(msa_path, 'w') as f:
-                f.write(msa_str)
-        fasta_path, var_path = run_preprocess(msa_path, out_path, threads)
+        fasta_path, var_path = run_preprocess(io.StringIO(msa_str), msa_filename, out_path, threads)
     else:
         if not fasta_path:
             raise ValueError("'fasta_path' must be provided when using 'var_path'.")
