@@ -1177,11 +1177,13 @@ def save(design_out, out_path: str):
                 bgcolor='white'
             ), 
             # title
-            title_text=f"{ref_name} (risk components are stacked together)", 
-            title_x=0.98, 
-            titlefont=dict(
-                size=18,
-            ), 
+            title={
+                'text': f"{ref_name} (risk components are stacked together)",
+                'x': 0.98, 
+                'font': {
+                    'size': 18,
+                }
+            }, 
 
             # axis
             xaxis=dict(
