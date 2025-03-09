@@ -120,7 +120,7 @@ if __name__ == "__main__":
         help='Output path (output to current directory by default).')
 
     # specificity
-    specificity_parser = subparsers.add_parser('specificity', help='Specify existing multiplexed PCR primers.')
+    specificity_parser = subparsers.add_parser('specificity', help='Check the specificity of existing primer pools against a BLAST database of non-spefic sequences.')
     specificity_parser.add_argument(
         'primer_pool', type=str, metavar='csv-file', 
         help='Path to the csv file of a primer pool. Required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer).')
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         help='Number of threads [1].')
 
     # sensitivity
-    sensitivity_help = 'Visualize an MSA, along with its primers/probes (if provided), and validate their alignment and sensitivity.'
+    sensitivity_help = 'Check the sensitivity of existing primer pools against an MSA of target sequences, and visualize the MSA and primer alignments.'
     sensitivity_parser = subparsers.add_parser(
         'sensitivity', help=sensitivity_help, description=sensitivity_help, formatter_class=argparse.RawTextHelpFormatter
     )
