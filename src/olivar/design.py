@@ -32,6 +32,9 @@ from basic import seq2num
 from basic import num2seq
 from basic import revcomp
 
+import logging
+logger = logging.getLogger('main')
+
 
 GC_LETTER = ['C', 'G', 'c', 'g']
 
@@ -176,10 +179,10 @@ class primer_generator(object):
 
         # input should be lowercase
         if seq == seq.upper(): # all uppercase
-            print('input sequence should be in lowercase, with SNPs in uppercase. ')
+            logger.info('input sequence should be in lowercase, with SNPs in uppercase. ')
             seq = seq.lower()
             if check_SNP:
-                print('ignore check_SNP')
+                logger.info('ignore check_SNP')
                 check_SNP = False
 
         primer_seq = [] # primer sequence
