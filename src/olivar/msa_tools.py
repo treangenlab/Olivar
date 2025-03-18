@@ -15,19 +15,7 @@ import subprocess
 import multiprocessing
 from time import time
 
-# logging settings
-logFormatter = logging.Formatter(
-    fmt='%(asctime)s | %(levelname)-8s | %(message)s', 
-    style='%', 
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-# add handler for printing to stdout
-consoleHandler = logging.StreamHandler(sys.stdout)
-consoleHandler.setFormatter(logFormatter)
-# create logger
-logger = logging.getLogger(__name__) # must use the same logger to get the same setting
-logger.setLevel(logging.DEBUG) # show all messages
-logger.addHandler(consoleHandler)
+logger = logging.getLogger('main')
 
 import numpy as np
 from Bio import SeqIO
@@ -689,7 +677,7 @@ class MSA(object):
             fig.write_html(f'{save_path}')
 
 
-def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1) -> None:
+def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1, min_var: float=0.01) -> None:
     msa = MSA(msa_path, n_cpu)
     var_dict = msa.variant_call()
 
@@ -709,7 +697,8 @@ def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_
     with open(var_path, 'w') as f:
         f.write('START,STOP,FREQ\n')
         for pos, freq in var_dict.items():
-            f.write(f'{pos},{pos},{freq}\n')
+            if freq >= min_var:
+                f.write(f'{pos},{pos},{freq}\n')
     return consens_path, var_path
 
 def run_validate(msa_path: str, primer_pool: str, pool: int, out_path: str, title: str, 
@@ -734,7 +723,7 @@ def run_validate(msa_path: str, primer_pool: str, pool: int, out_path: str, titl
     for i, row in df[df['pool']==pool].iterrows():
         seq_list.extend([row['fP'], row['rP']])
         seq_names.extend(['%s_fP' % row['amplicon_id'], '%s_rP' % row['amplicon_id']])
-    print(f'Successfully loaded {primer_pool}, pool-{pool}.')
+    logger.info(f'Successfully loaded {primer_pool}, pool-{pool}.')
 
     out_text = ''
     for i in range(len(seq_list)):
@@ -745,12 +734,12 @@ def run_validate(msa_path: str, primer_pool: str, pool: int, out_path: str, titl
         SeqIO.write(consensus_record, f, 'fasta')
     msa.plot(os.path.join(out_path, title + f'_pool-{pool}.html'))
 
-def run_preprocess(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1):
+def run_preprocess(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1, min_var: float=0.01):
     if prefix is None:
         prefix = msa_path
 
     logger.info("Running variant calling to extract consensus and SNPs...")
-    consens_path, var_path = run_variant_call(msa_path, msa_filename, prefix, n_cpu)
+    consens_path, var_path = run_variant_call(msa_path, msa_filename, prefix, n_cpu, min_var)
 
     return consens_path, var_path
 
