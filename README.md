@@ -13,7 +13,7 @@ A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), alt
 
 ## Install with Bioconda (Linux x64 or Mac Intel chip)
 
-#### 1. Install Miniconda if not installed already ([quick command line install](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install))
+#### 1. Install Miniconda if not installed already ([quick command line install](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions))
 
 #### 2. Create a new Conda environment named "olivar" and install Olivar via Bioconda
 ```
