@@ -99,6 +99,8 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         align: Conrol whether do alignment for MSA file or not [False]. 
         min_var: Minimum threshold of frequencies of SNP [0.01].
     '''
+    if not msa_path and not var_path:
+        raise ValueError("Either 'msa_path' or 'var_path' must be provided.")
     if msa_path:
         if var_path:
             logger.warning("Both 'msa_path' and 'var_path' provided. Ignoring 'var_path' and processing with MSA + BLAST.")
