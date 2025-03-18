@@ -27,21 +27,37 @@ __author__ = 'Michael X. Wang'
 import os
 CURRENT_DIR = os.path.dirname(__file__)
 
+import sys
 import io
 import json
 import pickle # needs python>=3.8
 import random
 import copy
 import multiprocessing
+
+import logging
 from time import time
 from math import ceil, floor
 from copy import deepcopy
+
+# logging settings
+logFormatter = logging.Formatter(
+    fmt='%(asctime)s | %(levelname)-8s | %(message)s', 
+    style='%', 
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+# add handler for printing to stdout
+consoleHandler = logging.StreamHandler(sys.stdout)
+consoleHandler.setFormatter(logFormatter)
+# create logger
+logger = logging.getLogger('main')
+logger.setLevel(logging.DEBUG) # show all messages
+logger.addHandler(consoleHandler)
 
 import pandas as pd
 import numpy as np
 from numpy.random import rand, default_rng
 from tqdm import tqdm
-
 from Bio import SeqIO
 
 import plotly
@@ -68,7 +84,7 @@ RISK_TH = 0.1 # top RISK_TH highest risk primer design regions are considered as
 REFEXT = '.olvr' # extension for Olivar reference file
 DESIGNEXT = '.olvd' # extension for Olivar design file
 
-def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int, align: bool):
+def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int, align: bool, min_var: float):
     '''
     Build the Olivar reference file for tiled amplicon design, handling gaps in the MSA.
     Input:
@@ -80,23 +96,28 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         out_path: Output directory [./]. 
         title: Name of the Olivar reference file [MSA record ID]. 
         threads: Number of threads [1]. 
-        align: Conrol whether do alignment for MSA file or not. [False]. 
+        align: Conrol whether do alignment for MSA file or not [False]. 
+        min_var: Minimum threshold of frequencies of SNP [0.01].
     '''
-    if not msa_path and not var_path:
-        raise ValueError("Either 'msa_path' or 'var_path' must be provided.")
-
     if msa_path:
         if var_path:
-            print("Warning: Both 'msa_path' and 'var_path' provided. Ignoring 'var_path' and processing with MSA + BLAST.")
+            logger.warning("Both 'msa_path' and 'var_path' provided. Ignoring 'var_path' and processing with MSA + BLAST.")
         if not os.path.exists(msa_path):
             raise FileNotFoundError(f"MSA file '{msa_path}' not found.")
         var_path = None
-        # Perform alignment if requested
         if align:
-            print("Running alignment with MAFFT...")
+            logger.info("Running alignment with MAFFT...")
             msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
+            aligned_msa_path = os.path.join(out_path, os.path.basename(msa_path).replace('.fasta', '_aligned.fasta'))
             msa_str = run_cmd('mafft', '--auto', '--thread', str(threads), msa_path)
-        fasta_path, var_path = run_preprocess(io.StringIO(msa_str), msa_filename, out_path, threads)
+
+            if not os.path.exists(out_path):
+                os.makedirs(out_path)
+            with open(aligned_msa_path, 'w') as f:
+                f.write(msa_str)
+            msa_path = aligned_msa_path
+        #fasta_path, var_path = run_preprocess(io.StringIO(msa_str), msa_filename, out_path, threads)
+        fasta_path, var_path = run_preprocess(msa_path, msa_filename, out_path, threads, min_var)
     else:
         if not fasta_path:
             raise ValueError("'fasta_path' must be provided when using 'var_path'.")
@@ -125,7 +146,7 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
         os.makedirs(out_path)
     
     # load the first record in fasta_path
-    print(f'Loading the first record of "{fasta_path}"')
+    logger.info(f'Loading the first record of "{fasta_path}"')
     for record in SeqIO.parse(fasta_path, 'fasta'):
         seq_raw = str(record.seq).lower() # SNPs in upper case
         break # read first record
@@ -138,7 +159,7 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
 
     word_size = 28
     offset = 14 # word_size should be divisible by offset
-    print('Building Olivar reference with word_size=%d, offset=%d' % (word_size, offset))
+    logger.info('Building Olivar reference with word_size=%d, offset=%d' % (word_size, offset))
 
     n_cycle = word_size/offset
     if n_cycle != int(n_cycle):
@@ -178,7 +199,7 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
                 received_dtype = df[cname].dtype
             except KeyError:
                 # column not provided
-                print("Warning: 'FREQ' is not provided")
+                logger.warning("'FREQ' is not provided")
                 df[cname] = np.nan
                 continue
             if received_dtype != expected_dtype:
@@ -196,9 +217,9 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
                 seq_raw[pos] = seq_raw[pos].upper()
         var_arr = var_arr**0.5 # amplify low frequency variants
         seq_raw = ''.join(seq_raw)
-        print(f'Variation coordinates and frequencies loaded from "{var_path}"')
+        logger.info(f'Variation coordinates and frequencies loaded from "{var_path}"')
     else:
-        print('No sequence variation coordinates provided, skipped.')
+        logger.info('No sequence variation coordinates provided, skipped.')
 
     # calculate risk of GC, non-specificity, complexity
     seq_len_temp = (len(seq_raw)//offset) * offset # length of temporary sequence
@@ -214,16 +235,16 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
 
     # get GC, complexity, BLAST hits of each word
     with multiprocessing.Pool(processes=n_cpu) as pool:
-        print('Calculating GC content and sequence complexity...')
+        logger.info('Calculating GC content and sequence complexity...')
         tik = time()
         all_gc = np.array(pool.map(basic.get_GC, all_word))
         all_complexity = np.array(pool.map(basic.get_complexity, all_word))
-        print('Finished in %.3fs' % (time()-tik))
+        logger.info(f'Finished in {time()-tik:.3f}s')
     if BLAST_db:
-        print(f'Calculating non-specificity with BLAST database "{BLAST_db}"')
+        logger.info(f'Calculating non-specificity with BLAST database "{BLAST_db}"')
         all_hits, _ = BLAST_batch_short(all_word, db=BLAST_db, n_cpu=n_cpu, mode='rough') # tabular output
     else:
-        print('No BLAST database provided, skipped.')
+        logger.info('No BLAST database provided, skipped.')
         all_hits = np.zeros(len(all_word))
 
     # calculate score array
@@ -255,7 +276,7 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
     }
     with open(save_path, 'wb') as f:
         pickle.dump(olv_ref, f, protocol=5) # protocol 5 needs python>=3.8
-        print('Reference file saved as %s' % save_path)
+        logger.info('Reference file saved as %s' % save_path)
 
 def find_min_loc(risk_arr, start, stop, rng):
     '''
@@ -355,6 +376,7 @@ def design_context_seq(config):
     w_var = config['w_var']
     seed = config['seed']
     n_cpu = config['threads']
+    num_iterations = config['num_iterations']
     
     # set random number generator
     rng_parent = default_rng(seed)
@@ -370,7 +392,7 @@ def design_context_seq(config):
     comp_arr = olv_ref['comp_arr']
     var_arr = olv_ref['var_arr']
     hits_arr = olv_ref['hits_arr']
-    print('Successfully loaded reference file %s' % ref_path)
+    logger.info('Successfully loaded reference file %s' % ref_path)
     
     if not config['min_amp_len']:
         min_amp_len = int(max_amp_len*0.9)
@@ -393,7 +415,7 @@ def design_context_seq(config):
     # construct risk array (first row is risk, second row is coordinate on seq_rawy)
     risk_arr = gc_arr + comp_arr + hits_arr + var_arr
 
-    N = 500*len(risk_arr)//max_amp_len # number of primer sets to generate
+    N = num_iterations * 500*len(risk_arr)//max_amp_len # number of primer sets to generate
     #N = 100
     rand_int = rng_parent.integers(2**32, size=N) # random seeds for each iteration
 
@@ -401,11 +423,11 @@ def design_context_seq(config):
     # design = [generate_context((risk_arr, start, stop, max_amp_len, min_amp_len, rand_int[i])) for i in tqdm(range(N))]
 
     # multi threads
-    print('reference sequence length: %d' % len(seq_raw))
-    print('design region: %d:%d' % (start, stop))
-    print('region length: %d' % (stop-start+1))
-    print('number of PDR sets to be tested: %d' % N)
-    print('Designing PDRs...')
+    logger.info('reference sequence length: %d' % len(seq_raw))
+    logger.info('design region: %d:%d' % (start, stop))
+    logger.info('region length: %d' % (stop-start+1))
+    logger.info('number of PDR sets to be tested: %d' % N)
+    logger.info('Designing PDRs...')
     tik = time()
     with multiprocessing.Pool(processes=n_cpu) as pool:
         batch = [(risk_arr, start, stop, max_amp_len, min_amp_len, rand_int[i]) for i in range(N)]
@@ -416,7 +438,7 @@ def design_context_seq(config):
                 ascii=' >'
             )
         )
-    print('Finished in %.3fs' % (time()-tik))
+    logger.info('Finished in %.3fs' % (time()-tik))
 
     # Loss of all iterations
     all_loss = [d[2] for d in design]
@@ -425,7 +447,7 @@ def design_context_seq(config):
     # find the best arangement of primer design regions
     best_design = sorted(design, key=lambda x:x[2])
     all_context_seq, all_risk, loss = best_design[0]
-    print('Loss of the best design: %.3f' % loss)
+    logger.info('Loss of the best design: %.3f' % loss)
     
     # prepare output
     all_plex_info = {}
@@ -444,11 +466,11 @@ def design_context_seq(config):
             'risk': tuple(risk)
         }
         all_plex_info['%s_%d' % (seq_id, i+1)] = plex_info
-    print('total amplicons: %d' % (i+1))
+    logger.info('total amplicons: %d' % (i+1))
     cover_start = all_context_seq[0][1]+1
     cover_stop = all_context_seq[-1][2]-1
-    print('covered region: %d:%d' % (cover_start, cover_stop))
-    print('coverage of reference sequence: %.3f%%' % (100*(cover_stop-cover_start+1)/len(seq_raw)))
+    logger.info('covered region: %d:%d' % (cover_start, cover_stop))
+    logger.info('coverage of reference sequence: %.3f%%' % (100*(cover_stop-cover_start+1)/len(seq_raw)))
     return all_plex_info, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, olv_ref['seq_record']
 
 
@@ -461,7 +483,7 @@ def get_primer(all_plex_info, config):
     Output:
         all_plex_info: add primer candidates to input all_plex_info
     '''
-    print('Generating primer candidates...')
+    logger.info('Generating primer candidates...')
     tik = time()
 
     temperature_fP = config['temperature']
@@ -495,7 +517,7 @@ def get_primer(all_plex_info, config):
         fP_setting = deepcopy(default_fP_setting)
         fP, fail = fP_generator.get(fP_design, fP_prefix, check_BLAST=check_BLAST, **fP_setting)
         while len(fP) == 0:
-            print('Fail to generate fP, update setting: %s' % plex_id)
+            logger.info('Fail to generate fP, update setting: %s' % plex_id)
             # detect failure mode with the most cases
             fail_mode = max(fail, key=fail.get)
             # update setting
@@ -516,7 +538,7 @@ def get_primer(all_plex_info, config):
         rP_setting = deepcopy(default_rP_setting)
         rP, fail = rP_generator.get(rP_design, rP_prefix, check_BLAST=check_BLAST, **rP_setting)
         while len(rP) == 0:
-            print('Fail to generate rP, update setting: %s' % plex_id)
+            logger.info('Fail to generate rP, update setting: %s' % plex_id)
             # detect failure mode with the most cases
             fail_mode = max(fail, key=fail.get)
             # update setting
@@ -532,7 +554,7 @@ def get_primer(all_plex_info, config):
         plex_info['rP_candidate'] = rP
         plex_info['rP_setting'] = rP_setting
         
-    print('Finished in %.3fs' % (time()-tik))
+    logger.info('Finished in %.3fs' % (time()-tik))
     return all_plex_info
 
 
@@ -545,7 +567,7 @@ def optimize(all_plex_info, config):
     Output:
         all_plex_info: add optimized fP and rP to each plex of input all_plex_info
     '''
-    print('Optimizing primer dimers...')
+    logger.info('Optimizing primer dimers...')
     # set random seed
     np.random.seed(config['seed'])
     random.seed(config['seed'])
@@ -575,14 +597,14 @@ def optimize(all_plex_info, config):
                 optimize.append([fp, rp])
         plex_info['optimize'] = optimize
         n_pair.append(len(optimize))
-    print('total primer pairs %d' % sum(n_pair))
-    print('average pairs per plex %.2f' % (sum(n_pair)/len(n_pair)))
+    logger.info('total primer pairs %d' % sum(n_pair))
+    logger.info('average pairs per plex %.2f' % (sum(n_pair)/len(n_pair)))
     
     # optimize each tube
     all_lc = []
     tik = time()
     for i_tube in range(1, N_POOLS+1):
-        print('\npool %d, simulated annealing...' % i_tube)
+        logger.info('\npool %d, simulated annealing...' % i_tube)
         # plex_id of current tube
         curr_tube = [plex_id for plex_id, plex_info in all_plex_info.items() if plex_info['tube'] == i_tube]
 
@@ -606,13 +628,13 @@ def optimize(all_plex_info, config):
             curr_badness += fp['badness'] + rp['badness']
         inter_badness, comp_badness = PrimerSetBadnessFast(list(curr_fp.values()), list(curr_rp.values()), existing_primer)
         curr_badness += inter_badness
-        print('initial loss = %.3f' % curr_badness)
+        logger.info('initial loss = %.3f' % curr_badness)
 
         # optimization
         learning_curve = []
         SATemp = InitSATemp
         for step in range(NUMSTEPS + ZEROSTEPS):
-            print('SA temperature = %.3f, SADDLE Loss = %.3f' % (SATemp, curr_badness))
+            logger.info('SA temperature = %.3f, SADDLE Loss = %.3f' % (SATemp, curr_badness))
             for t in range(TimePerStep):
                 # pick a plex to change primer pair
                 mutplex = random.choice(curr_tube) # randomly select a plex_id in current tube
@@ -670,8 +692,7 @@ def optimize(all_plex_info, config):
 
         all_lc.append(learning_curve)
     
-    print('Primer dimer optimization finished in %.3fs' % (time()-tik))
-    print()
+    logger.info('Primer dimer optimization finished in %.3fs' % (time()-tik))
     return all_plex_info, all_lc
 
 
@@ -684,7 +705,7 @@ def to_df(all_plex_info, config):
     Output:
         DataFrame of all amplicons
     '''
-    print('Formatting design output...')
+    logger.info('Formatting design output...')
 
     l_fP_adp = len(config['fP_prefix']) # length of adapter/prefix
     l_rP_adp = len(config['rP_prefix'])
@@ -798,7 +819,7 @@ def to_df(all_plex_info, config):
 def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_len: int, 
     w_egc: float, w_lc: float, w_ns: float, w_var: float, temperature: float, salinity: float, 
     dG_max: float, min_GC: float, max_GC: float, min_complexity: float, max_len: int, 
-    check_var: bool, fP_prefix: str, rP_prefix: str, seed: int, threads: int):
+    check_var: bool, fP_prefix: str, rP_prefix: str, seed: int, threads: int, num_iterations: int):
     '''
     Design tiled amplicons. 
     Input:
@@ -825,6 +846,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         rP_prefix: Prefix of reverse primer. Empty string '' by default.
         seed: Random seed for optimizing primer design regions and primer dimer [10].
         threads: Number of threads [1].
+        num_iterations: Number of iterations [1].
     '''
     config = {
         'ref_path': ref_path, 
@@ -847,7 +869,8 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         'fP_prefix': fP_prefix, 
         'rP_prefix': rP_prefix, 
         'seed': seed, 
-        'threads': threads
+        'threads': threads,
+        'num_iterations': num_iterations
     }
 
     if not os.path.exists(config['out_path']):
@@ -858,6 +881,14 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
 
     # validate input .olvr file(s)
     ref_path_dict = dict() # {ref_name: ref_path}
+
+
+    # log to file, must happen after working_dir is created
+    # if working_dir exist, it should be a directory as well
+    fileHandler = logging.FileHandler(os.path.join(out_path, f'{config['title']}.log'), mode='a')
+    fileHandler.setFormatter(logFormatter)
+    logger.addHandler(fileHandler)
+
     # check input is a file or a directory
     if os.path.isfile(design_ref_path) and design_ref_path.endswith(REFEXT):
         # use the name of the .olvr file as reference name
@@ -870,21 +901,20 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
                 # use file name as reference name
                 ref_path_dict[file[:-len(REFEXT)]] = file_path
         if ref_path_dict:
-            print(f'Found {len(ref_path_dict)} {REFEXT} file(s) under "{design_ref_path}"')
+            logger.info(f'Found {len(ref_path_dict)} {REFEXT} file(s) under "{design_ref_path}"')
             for file_path in ref_path_dict.values():
-                print(os.path.basename(file_path))
+                logger.info(os.path.basename(file_path))
         else:
             raise FileNotFoundError(f'No {REFEXT} file found in the directory "{design_ref_path}".')
     else:
         raise FileNotFoundError(f'Input is neither a {REFEXT} file nor a directory.')
-    print()
     
     # design PDRs for each reference
     all_plex_info = {}
     all_ref_info = {}
     for ref_name, ref_path in ref_path_dict.items():
         config['ref_path'] = ref_path
-        print(f'Designing PDRs for {ref_name} using {ref_path}...')
+        logger.info(f'Designing PDRs for {ref_name} using {ref_path}...')
         temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
         all_plex_info.update(temp_dict)
         all_ref_info[ref_name] = {
@@ -896,7 +926,6 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
             'all_loss': all_loss, 
             'seq_record': seq_record, 
         }
-        print()
     
     # revert modified config values
     config['ref_path'] = design_ref_path
@@ -917,7 +946,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     design_path = os.path.join(config['out_path'], '%s.olvd' % config['title'])
     with open(design_path, 'wb') as f:
         pickle.dump(design_out, f, protocol=5) # protocol 5 needs python>=3.8
-        print('Design file saved as %s' % design_path)
+        logger.info('Design file saved as %s' % design_path)
 
     # save human readable files
     save(design_out, config['out_path'])
@@ -933,10 +962,10 @@ def save(design_out, out_path: str):
     # load data
     if type(design_out) is str:
         if os.path.isfile(design_out) and design_out.endswith(DESIGNEXT):
-            print(f'Loading Olivar design from {design_out}...')
+            logger.info(f'Loading Olivar design from {design_out}...')
             with open(design_out,  'rb') as f:
                 design_out = pickle.load(f)
-                print(f'Successfully loaded Olivar design.')
+                logger.info(f'Successfully loaded Olivar design.')
         else:
             raise FileNotFoundError(f'Olivar design (.olvd) file "{design_out}" not found or is invalid.')
     
@@ -958,12 +987,12 @@ def save(design_out, out_path: str):
     save_path = os.path.join(out_path, '%s.json' % config['title'])
     with open(save_path, 'w') as f:
         json.dump(config, f, indent=4)
-    print(f'Configurations saved as {save_path}')
+    logger.info(f'Configurations saved as {save_path}')
 
     # save sequences and coordinates as csv
     save_path = os.path.join(out_path, '%s.csv' % config['title'])
     df.to_csv(save_path, index=False)
-    print(f'Primer pools saved as {save_path}')
+    logger.info(f'Primer pools saved as {save_path}')
 
     # save ARTIC output format
     try:
@@ -971,9 +1000,9 @@ def save(design_out, out_path: str):
         save_path = os.path.join(out_path, '%s.primer.bed' % config['title'])
         art_df.sort_values(by='start', axis=0, ascending=True, inplace=True)
         art_df.to_csv(save_path, sep='\t', header=False, index=False)
-        print(f'Primer pools (ARTIC format) saved as {save_path}')
+        logger.info(f'Primer pools (ARTIC format) saved as {save_path}')
     except KeyError:
-        print('ARTIC/PrimalScheme format is not included in older versions of Olivar, skipped.')
+        logger.info('ARTIC/PrimalScheme format is not included in older versions of Olivar, skipped.')
 
     #------------- SADDLE Loss -------------#
     fig = make_subplots(
@@ -1009,11 +1038,11 @@ def save(design_out, out_path: str):
     save_path = os.path.join(out_path, f"{config['title']}_SADDLE_Loss.html")
     with open(save_path, 'w') as f:
         f.write(plotly.io.to_html(fig))
-    print(f'SADDLE optimization plot saved as {save_path}')
+    logger.info(f'SADDLE optimization plot saved as {save_path}')
     #------------- SADDLE Loss -------------#
 
     for ref_name, ref_info in all_ref_info.items():
-        print(f'Saving output files and figures for {ref_name}...')
+        logger.info(f'Saving output files and figures for {ref_name}...')
 
         risk_arr = ref_info['risk_arr']
         gc_arr = ref_info['gc_arr']
@@ -1027,7 +1056,7 @@ def save(design_out, out_path: str):
         save_path = os.path.join(out_path, '%s_ref.fasta' % ref_name)
         with open(save_path, 'w') as f:
             SeqIO.write([seq_record], f, 'fasta')
-        print(f'Reference sequence saved as {save_path}')
+        logger.info(f'Reference sequence saved as {save_path}')
 
         # save risk array
         risk = pd.DataFrame({
@@ -1041,7 +1070,7 @@ def save(design_out, out_path: str):
         })
         save_path = os.path.join(out_path, '%s_risk.csv' % ref_name)
         risk.to_csv(save_path, index=False)
-        print(f'Risk scores saved as {save_path}')
+        logger.info(f'Risk scores saved as {save_path}')
 
         #------------- PDR Loss -------------#
         fig = go.Figure()
@@ -1061,7 +1090,7 @@ def save(design_out, out_path: str):
         save_path = os.path.join(out_path, f'{ref_name}_PDR_Loss.html')
         with open(save_path, 'w') as f:
             f.write(plotly.io.to_html(fig))
-        print(f'PDR optimization plot saved as {save_path}')
+        logger.info(f'PDR optimization plot saved as {save_path}')
         #------------- PDR Loss -------------#
 
         #------------- risk array and primers -------------#
@@ -1217,9 +1246,8 @@ def save(design_out, out_path: str):
         save_path = os.path.join(out_path, '%s.html' % ref_name)
         with open(save_path, 'w') as f:
             f.write(plotly.io.to_html(fig))
-        print(f'Risk and primer viewer saved as {save_path}')
+        logger.info(f'Risk and primer viewer saved as {save_path}')
         #------------- risk array and primers -------------#
-        print()
 
 
 def specificity(primer_pool: str, pool: int, BLAST_db: str, out_path: str, 
@@ -1254,20 +1282,20 @@ def specificity(primer_pool: str, pool: int, BLAST_db: str, out_path: str,
     for i, row in df[df['pool']==pool].iterrows():
         seq_list.extend([row['fP'], row['rP']])
         seq_names.extend(['%s_fP' % row['amplicon_id'], '%s_rP' % row['amplicon_id']])
-    print(f'Successfully loaded {primer_pool}, pool-{pool}.')
+    logger.info(f'Successfully loaded {primer_pool}, pool-{pool}.')
 
     # non-specific simulation
     if BLAST_db:
         df_ns, df_count, all_hits = ns_simulation(BLAST_db, seq_list, seq_names, max_amp_len, threads)
         save_path = os.path.join(out_path, f'{title}_pool-{pool}_ns-amp.csv')
         df_ns.to_csv(save_path, index=False)
-        print('Non-specific amplicons saved as %s' % save_path)
+        logger.info('Non-specific amplicons saved as %s' % save_path)
         save_path = os.path.join(out_path, f'{title}_pool-{pool}_ns-pair.csv')
         df_count.to_csv(save_path, index=False)
-        print('Non-specific primer pairs saved as %s' % save_path)
+        logger.info('Non-specific primer pairs saved as %s' % save_path)
     else:
         all_hits = np.zeros(len(seq_list)) - 1
-        print('No BLAST database provided, skipped.')
+        logger.info('No BLAST database provided, skipped.')
 
     # calculate Badness
     #all_rep = [seq2arr(p) for p in seq_list]
@@ -1291,10 +1319,10 @@ def specificity(primer_pool: str, pool: int, BLAST_db: str, out_path: str,
     })
     save_path = os.path.join(out_path, f'{title}_pool-{pool}.csv')
     df_val.to_csv(save_path, index=False)
-    print('Validation file saved as %s' % save_path)
+    logger.info('Validation file saved as %s' % save_path)
 
 def sensitivity(primer_pool: str, msa_path: str, pool: int, out_path: str, 
-    title: str, temperature: float=60.0, sodium: float=0.18, threads: int=1):
+    title: str, temperature: float=60.0, sodium: float=0.18, threads: int=1, align: bool=False):
     '''
     Visualize an MSA, along with its primers/probes (if provided), and validate their alignment and sensitivity.
     Input:
@@ -1307,7 +1335,19 @@ def sensitivity(primer_pool: str, msa_path: str, pool: int, out_path: str,
         temperature: PCR annealing temperature [60.0]. 
         sodium: The sum of the concentrations of monovalent ions (Na+, K+, NH4+), in molar [0.18].
         threads: Number of threads [1]. 
+        align: Conrol whether do alignment for MSA file or not. [False]. 
     '''
     if not msa_path:
         raise ValueError("'msa_path' must be provided for sensitivity calculation.")
+    
+    if align:
+        logger.info("Running alignment with MAFFT...")
+        aligned_msa_path = os.path.join(out_path, os.path.basename(msa_path).replace('.fasta', '_aligned.fasta'))
+        msa_str = run_cmd('mafft', '--auto', '--thread', str(threads), msa_path)
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
+        with open(aligned_msa_path, 'w') as f:
+            f.write(msa_str)
+        msa_path = aligned_msa_path
+    
     run_validate(msa_path = msa_path, primer_pool = primer_pool, pool = pool, temperature = temperature, sodium = sodium, out_path = out_path, title = title, n_cpu = threads)
