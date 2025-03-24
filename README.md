@@ -141,7 +141,7 @@ olivar specificity example_output/olivar-design.csv --pool 1 -d example_input/Hu
  - Use multiple CPU cores (`-p`) to accelerate this process. 
  - Output files are listed below (coordinates are 1-based). 
 ```
-olivar sensitivity example_output/olivar-design.csv -m example_input/H1N1-HA.fasta --pool 1 -o example_output -p 1
+olivar sensitivity example_output/olivar-design.csv -m example_input/H1N1-HA.fasta --pool 1 -o example_output --align -p 1
 ```
 | Default name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :-------- | 
