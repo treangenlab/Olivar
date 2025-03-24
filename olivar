@@ -47,7 +47,7 @@ if __name__ == "__main__":
         help='Conrol whether do alignment or not.'
     )
     build_parser.add_argument(
-        '--min_var', type=float, default=0.01, metavar='<float>', 
+        '--min-var', type=float, default=0.01, metavar='<float>', 
         help='Minimum of frequencies for SNPs.')
 
     # tiling
