@@ -34,7 +34,7 @@ if __name__ == "__main__":
         '--db', '-d', type=str, default=None, metavar='<string>', 
         help='Optional, path to the BLAST database. Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").')
     build_parser.add_argument(
-        '--output', '-o', type=str, default='./output', metavar='<string>', 
+        '--output', '-o', type=str, default='./', metavar='<string>', 
         help='Output directory (output to current directory by default).')
     build_parser.add_argument(
         '--title', '-t', type=str, default=None, metavar='<string>', 
