@@ -161,7 +161,7 @@ Refer to [example.py](example.py) for more details.
 #### sub-command: `build`
 ```
 olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>] 
-[--output <string>] [--title <string>] [--threads <int>] [--align]
+[--output <string>] [--title <string>] [--threads <int>] [--align] [--min-var <float>]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -173,6 +173,7 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 |--title, -t| FASTA record ID| Name of the Olivar reference file.|
 |--threads, -p| 1| Number of threads.|
 |--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
+|--min-var| 0.01| Minimum threshold of frequencies of SNP.|
 
 #### sub-command: `tiling`
 ```
@@ -180,7 +181,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 [--min-amp-len <int>] [--w-egc <float>] [--w-lc <float>] [--w-ns <float>] [--w-var <float>] 
 [--temperature <float>] [--salinity <float>] [--dg-max <float>] [--min-gc <float>] 
 [--max-gc <float>] [--min-complexity <float>] [--max-len <int>] [--check-var] 
-[--fp-prefix <DNA>] [--rp-prefix <DNA>] [--seed <int>] [--threads <int>]
+[--fp-prefix <DNA>] [--rp-prefix <DNA>] [--seed <int>] [--threads <int>] [--num-iterations <int>]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -205,6 +206,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--rp-prefix| **None**| Prefix of reverse primer. Empty by default.|
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
+|--num-iterations| 1| Number of iterations.|
 
 #### sub-command: `save`
 ```
