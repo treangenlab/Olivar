@@ -13,7 +13,7 @@ A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), alt
 
 ## Install with Bioconda (Linux x64 or Mac Intel chip)
 
-#### 1. Install Miniconda if not installed already ([quick command line install](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions))
+#### 1. Install Miniconda if not installed already ([quick command line install](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install))
 
 #### 2. Create a new Conda environment named "olivar" and install Olivar via Bioconda
 ```
@@ -235,7 +235,7 @@ olivar specificity csv-file [--pool <int>] [--db <string>] [--output <string>]
 #### sub-command: `sensitivity`
 ```
 olivar sensitivity csv-file [--pool <int>] [--msa <string>] [--temperature <float>] 
-[--sodium <float>] [--output <string>] [--title <string>] [--threads <int>]
+[--sodium <float>] [--output <string>] [--title <string>] [--threads <int>] [--align]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -247,6 +247,7 @@ olivar sensitivity csv-file [--pool <int>] [--msa <string>] [--temperature <floa
 |--output, -o| ./| Output directory (output to current directory by default).|
 |--title, -t| olivar-sensitivity| Name of validation.|
 |--threads, -p| 1| Number of threads.|
+|--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
 
 
 ## Prepare a BLAST database
