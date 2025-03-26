@@ -125,7 +125,7 @@ def design_context_seq(config):
     w_var = config['w_var']
     seed = config['seed']
     n_cpu = config['threads']
-    mult_iter = config['mult_iter']
+    iterMul = config['iterMul']
     
     # set random number generator
     rng_parent = default_rng(seed)
@@ -164,7 +164,7 @@ def design_context_seq(config):
     # construct risk array (first row is risk, second row is coordinate on seq_rawy)
     risk_arr = gc_arr + comp_arr + hits_arr + var_arr
 
-    N = mult_iter * 500*len(risk_arr)//max_amp_len # number of primer sets to generate
+    N = iterMul * 500*len(risk_arr)//max_amp_len # number of primer sets to generate
     #N = 100
     rand_int = rng_parent.integers(2**32, size=N) # random seeds for each iteration
 
