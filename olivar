@@ -118,7 +118,7 @@ if __name__ == "__main__":
         '--threads', '-p', type=int, default=1, metavar='<int>', 
         help='Number of threads [1].')
     tiling_parser.add_argument(
-        '--num-iterations', type=int, default=1, metavar='<int>', 
+        '--mult-iter', type=int, default=1, metavar='<int>', 
         help='Multiplier of iterations during PDR optimization.')
 
     # save
@@ -229,7 +229,7 @@ if __name__ == "__main__":
             rP_prefix=args.rp_prefix, 
             seed=args.seed, 
             threads=args.threads,
-            num_iterations=args.num_iterations
+            mult_iter=args.mult_iter
         )
 
     elif args.subparser_name == 'save':
