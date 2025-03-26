@@ -111,7 +111,7 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
 def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_len: int, 
     w_egc: float, w_lc: float, w_ns: float, w_var: float, temperature: float, salinity: float, 
     dG_max: float, min_GC: float, max_GC: float, min_complexity: float, max_len: int, 
-    check_var: bool, fP_prefix: str, rP_prefix: str, seed: int, threads: int, mult_iter: int):
+    check_var: bool, fP_prefix: str, rP_prefix: str, seed: int, threads: int, iterMul: int):
     '''
     Design tiled amplicons. 
     Input:
@@ -138,7 +138,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         rP_prefix: Prefix of reverse primer. Empty string '' by default.
         seed: Random seed for optimizing primer design regions and primer dimer [10].
         threads: Number of threads [1].
-        mult_iter: Multiplier of iterations during PDR optimization [1].
+        iterMul: Multiplier of iterations during PDR optimization [1].
     '''
     config = {
         'ref_path': ref_path, 
@@ -162,7 +162,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         'rP_prefix': rP_prefix, 
         'seed': seed, 
         'threads': threads,
-        'mult_iter': mult_iter
+        'iterMul': iterMul
     }
 
     if not os.path.exists(config['out_path']):
