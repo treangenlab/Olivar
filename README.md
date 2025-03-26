@@ -173,7 +173,7 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 |--title, -t| FASTA record ID| Name of the Olivar reference file.|
 |--threads, -p| 1| Number of threads.|
 |--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
-|--min-var| 0.01| Minimum threshold of frequencies of SNP.|
+|--min-var| 0.01| Minimum frequency threshold for sequence variations generated from the input MSA.|
 
 #### sub-command: `tiling`
 ```
@@ -206,7 +206,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--rp-prefix| **None**| Prefix of reverse primer. Empty by default.|
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
-|--num-iterations| 1| Number of iterations.|
+|--num-iterations| 1| Multiplier of iterations during PDR optimization.|
 
 #### sub-command: `save`
 ```
