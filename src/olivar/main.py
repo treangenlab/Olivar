@@ -79,7 +79,7 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         title: Name of the Olivar reference file [MSA record ID]. 
         threads: Number of threads [1]. 
         align: Conrol whether do alignment for MSA file or not [False]. 
-        min_var: Minimum threshold of frequencies of SNP [0.01].
+        min_var: Minimum frequency threshold for sequence variations generated from the input MSA [0.01].
     '''
     if not msa_path and not fasta_path:
         raise ValueError("Either 'msa_path' or 'fasta_path' must be provided.")
@@ -138,7 +138,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         rP_prefix: Prefix of reverse primer. Empty string '' by default.
         seed: Random seed for optimizing primer design regions and primer dimer [10].
         threads: Number of threads [1].
-        num_iterations: Number of iterations [1].
+        num_iterations: Multiplier of iterations during PDR optimization [1].
     '''
     config = {
         'ref_path': ref_path, 
