@@ -14,7 +14,6 @@ A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), alt
 ## Install with Bioconda (Linux x64 or Mac Intel chip)
 
 #### 1. Install Miniconda if not installed already ([quick command line install](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions))
-
 #### 2. Create a new Conda environment named "olivar" and install Olivar via Bioconda
 ```
 conda create -n olivar olivar --channel conda-forge --channel bioconda --strict-channel-priority
@@ -141,7 +140,7 @@ olivar specificity example_output/olivar-design.csv --pool 1 -d example_input/Hu
  - Use multiple CPU cores (`-p`) to accelerate this process. 
  - Output files are listed below (coordinates are 1-based). 
 ```
-olivar sensitivity example_output/olivar-design.csv -m example_input/H1N1-HA.fasta --pool 1 -o example_output -p 1
+olivar sensitivity example_output/olivar-design.csv -m example_input/H1N1-HA.fasta --pool 1 -o example_output --align -p 1
 ```
 | Default name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :-------- | 
@@ -162,7 +161,7 @@ Refer to [example.py](example.py) for more details.
 #### sub-command: `build`
 ```
 olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>] 
-[--output <string>] [--title <string>] [--threads <int>] [--align]
+[--output <string>] [--title <string>] [--threads <int>] [--align] [--min-var <float>]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -174,6 +173,7 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 |--title, -t| FASTA record ID| Name of the Olivar reference file.|
 |--threads, -p| 1| Number of threads.|
 |--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
+|--min-var| 0.01| Minimum frequency threshold for sequence variations generated from the input MSA.|
 
 #### sub-command: `tiling`
 ```
@@ -181,7 +181,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 [--min-amp-len <int>] [--w-egc <float>] [--w-lc <float>] [--w-ns <float>] [--w-var <float>] 
 [--temperature <float>] [--salinity <float>] [--dg-max <float>] [--min-gc <float>] 
 [--max-gc <float>] [--min-complexity <float>] [--max-len <int>] [--check-var] 
-[--fp-prefix <DNA>] [--rp-prefix <DNA>] [--seed <int>] [--threads <int>]
+[--fp-prefix <DNA>] [--rp-prefix <DNA>] [--seed <int>] [--threads <int>] [--iterMul <int>]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -206,6 +206,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--rp-prefix| **None**| Prefix of reverse primer. Empty by default.|
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
+|--iterMul| 1| Multiplier of iterations during PDR optimization.|
 
 #### sub-command: `save`
 ```
@@ -235,7 +236,7 @@ olivar specificity csv-file [--pool <int>] [--db <string>] [--output <string>]
 #### sub-command: `sensitivity`
 ```
 olivar sensitivity csv-file [--pool <int>] [--msa <string>] [--temperature <float>] 
-[--sodium <float>] [--output <string>] [--title <string>] [--threads <int>]
+[--sodium <float>] [--output <string>] [--title <string>] [--threads <int>] [--align]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -247,6 +248,7 @@ olivar sensitivity csv-file [--pool <int>] [--msa <string>] [--temperature <floa
 |--output, -o| ./| Output directory (output to current directory by default).|
 |--title, -t| olivar-sensitivity| Name of validation.|
 |--threads, -p| 1| Number of threads.|
+|--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
 
 
 ## Prepare a BLAST database

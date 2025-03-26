@@ -18,6 +18,9 @@ from collections import Counter
 
 import numpy as np
 
+import logging
+logger = logging.getLogger('main')
+
 
 def revcomp(seq):
     '''
@@ -152,7 +155,7 @@ def num2seq(num, l=None):
             num = new_num
         return ''.join(seq[::-1])
     else:
-        print('Input number out of range according to input sequence length.')
+        logger.info('Input number out of range according to input sequence length.')
         return None
 
 

@@ -28,6 +28,9 @@ from Bio.Blast import NCBIXML
 # The Bio.Application modules and modules relying on it have been deprecated
 from tqdm import tqdm
 
+import logging
+logger = logging.getLogger('main')
+
 
 def BLAST_batch_short(seq_list: list, db: str, n_cpu=1, seq_names=None, mode='rough'):
     '''
@@ -55,7 +58,7 @@ def BLAST_batch_short(seq_list: list, db: str, n_cpu=1, seq_names=None, mode='ro
     if N != len(seq_names):
         raise ValueError('length of seq_names should be the same as seq_list.')
     
-    print(f'Running blastn-short with {n_cpu} CPU(s), batch size {BATCH_SIZE}...')
+    logger.info(f'Running blastn-short with {n_cpu} CPU(s), batch size {BATCH_SIZE}...')
     tik = time()
     pbar = tqdm(total=N, ascii=' >') # progress bar
 
@@ -182,7 +185,7 @@ def BLAST_batch_short(seq_list: list, db: str, n_cpu=1, seq_names=None, mode='ro
         pbar.update(batch_stop-batch_start)
     pbar.close()
 
-    print('finished in %.2fs' % (time()-tik))
+    logger.info('finished in %.2fs' % (time()-tik))
     return all_count_batch, all_loc_batch
 
 
