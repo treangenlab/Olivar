@@ -421,7 +421,7 @@ class MSA(object):
                 consensus_gapless += b
                 consensus2msa[loc] = i_col
                 loc += 1
-        consensus2msa[loc] = i_col
+        consensus2msa[loc] = i_col + 1
         self.consensus = consensus_gapless
         self._consensus2msa = consensus2msa
         self._msa2consensus = msa2consensus
