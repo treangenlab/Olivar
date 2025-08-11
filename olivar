@@ -51,7 +51,7 @@ if __name__ == "__main__":
         help='Minimum frequency threshold for sequence variations generated from the input MSA.')
     build_parser.add_argument(
         '--deg', action='store_true', 
-        help='Control whether use degenerate mode or not.'
+        help='Control whether use degenerate mode or not. This mode only works with MSA input (--msa).'
     )
 
     # tiling
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         help='Multiplier of iterations during PDR optimization.')
     tiling_parser.add_argument(
         '--deg', action='store_true', 
-        help='Control whether use degenerate mode or not.'
+        help='Control whether use degenerate mode or not. This mode only works with MSA input (--msa).'
     )
 
     # save
