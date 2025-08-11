@@ -212,7 +212,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
 |--iterMul| 1| Multiplier of iterations during PDR optimization.|
-|--deg| N/A| Boolean flag. When enabled, builds the reference using degenerate IUPAC nucleotide codes to represent sequence variations (e.g., "R" for A/G, "Y" for C/T).|
+|--deg| N/A| Boolean flag. When enabled, design the primers using degenerate IUPAC nucleotide codes to represent sequence variations (e.g., "R" for A/G, "Y" for C/T).|
 
 #### sub-command: `save`
 ```
