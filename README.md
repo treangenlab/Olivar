@@ -175,7 +175,7 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 |--threads, -p| 1| Number of threads.|
 |--min-var| 0.01| Minimum frequency threshold for sequence variations generated from the input MSA.|
 |--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
-|--deg| N/A| Boolean flag. If enabled, builds the reference file using degenerate IUPAC nucleotide codes to represent variations (e.g., "R" for A/G, "Y" for C/T).|
+|--deg| N/A| Boolean flag. When enabled, builds the reference using degenerate IUPAC nucleotide codes to represent sequence variations (e.g., "R" for A/G, "Y" for C/T). **Note:** This mode only works with MSA input (--msa). For reference sequence input (--fasta), the sequence should be high-quality and contain no degenerate bases.|
 
 #### sub-command: `tiling`
 ```
@@ -212,7 +212,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
 |--iterMul| 1| Multiplier of iterations during PDR optimization.|
-|--deg| N/A| Boolean flag. If enabled, design primers using degenerate IUPAC nucleotide codes to represent variations (e.g., "R" for A/G, "Y" for C/T).|
+|--deg| N/A| Boolean flag. When enabled, builds the reference using degenerate IUPAC nucleotide codes to represent sequence variations (e.g., "R" for A/G, "Y" for C/T). **Note:** This mode only works with MSA input (--msa). For reference sequence input (--fasta), the sequence should be high-quality and contain no degenerate bases.|
 
 #### sub-command: `save`
 ```
