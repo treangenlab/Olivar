@@ -23,7 +23,7 @@ if __name__ == "__main__":
     build_parser = subparsers.add_parser('build', help='Build Olivar design reference.')
     build_parser.add_argument(
         '--fasta', '-f', type=str, default=None, metavar='fasta-file', 
-        help='Optional, Path to the FASTA reference sequence.')
+        help='Optional, Path to the FASTA reference sequence. The sequence should be high-quality and contain no degenerate bases'))
     build_parser.add_argument(
         '--var', '-v', type=str, default=None, metavar='<string>', 
         help='Optional, path to the csv file of SNP coordinates and frequencies. Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.')
