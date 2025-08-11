@@ -12,14 +12,16 @@ from time import time
 # internal modules
 import basic
 from ncbi_tools import BLAST_batch_short
+from msa_tools import average_scores, get_sensitivity, expand_degenerate_sequence
 
 REFEXT = '.olvr' # extension for Olivar reference file
 
-def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int):
+def run_build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int, deg: bool):
     '''
     Build the Olivar reference file for tiled amplicon design
     Input:
         fasta_path: Path to the FASTA reference sequence.
+        msa_path: Optional, Path to the MSA file (Multiple Sequence Alignment in FASTA format).
         var_path: Optional, path to the csv file of SNP coordinates and frequencies. 
             Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.
         BLAST_db: Optional, path to the BLAST database. 
@@ -27,6 +29,7 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
         out_path: Output directory [./]. 
         title: Name of the Olivar reference file [FASTA record ID]. 
         threads: Number of threads [1]. 
+        deg: Control whether use degenerate mode or not.
     '''
     n_cpu = threads
 
@@ -56,9 +59,10 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
         n_cycle = int(n_cycle)
     
     # check ambiguous bases
-    ambiguous_bases = set(seq_raw) - {'a', 't', 'c', 'g'}
-    if ambiguous_bases:
-        raise ValueError(f'Ambiguous bases are not supported. {ambiguous_bases} found in reference fasta file.')
+    if not deg:
+        ambiguous_bases = set(seq_raw) - {'a', 't', 'c', 'g'}
+        if ambiguous_bases:
+            raise ValueError(f'Ambiguous bases are not supported. {ambiguous_bases} found in reference fasta file.')
 
     # load SNP/iSNV coordinates
     # all coordinates are 1-based and inclusive
@@ -120,21 +124,58 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
 
     # fetch all words
     all_word = []
+    all_word_position = []
     for pos in range(0, seq_len_temp-word_size+1, offset):
         word_start = start_temp+pos-1
-        word = seq_raw[word_start : word_start+word_size]
+        word_stop = word_start+word_size
+        word = seq_raw[word_start : word_stop]
         all_word.append(word)
+        all_word_position.append((word_start, word_stop))
 
     # get GC, complexity, BLAST hits of each word
     with multiprocessing.Pool(processes=n_cpu) as pool:
-        logger.info('Calculating GC content and sequence complexity...')
+        logger.info('Calculating risk scores for each word...')
         tik = time()
-        all_gc = np.array(pool.map(basic.get_GC, all_word))
-        all_complexity = np.array(pool.map(basic.get_complexity, all_word))
+        
+        if not deg:
+            all_gc = np.array(pool.map(basic.get_GC, all_word))
+            all_complexity = np.array(pool.map(basic.get_complexity, all_word))
+        else:
+            all_gc = np.array(pool.starmap(average_scores, [(all_word, basic.get_GC)]))[0]
+            all_complexity = np.array(pool.starmap(average_scores, [(all_word, basic.get_complexity)]))[0]
+            all_combinations = np.array(pool.map(basic.get_combinations, all_word))
+            
+            logger.info(f'Loading MSA from {msa_path} for sensitivity calculation...')
+            args_list = [(word, pos[0], pos[1], msa_path, deg) for word, pos in zip(all_word, all_word_position)]
+            all_sensitivity = np.array(pool.starmap(get_sensitivity, args_list))
         logger.info(f'Finished in {time()-tik:.3f}s')
     if BLAST_db:
         logger.info(f'Calculating non-specificity with BLAST database "{BLAST_db}"')
-        all_hits, _ = BLAST_batch_short(all_word, db=BLAST_db, n_cpu=n_cpu, mode='rough') # tabular output
+        # all_hits, _ = BLAST_batch_short(all_word, db=BLAST_db, n_cpu=n_cpu, mode='rough')
+        expanded_all_word = []
+        expanded_names = []
+        variant_map = []  # maps variant index to original word index
+
+        for i, seq in enumerate(all_word):
+            seq_variants = expand_degenerate_sequence(seq)
+            expanded_all_word.extend(seq_variants)
+            expanded_names.extend([f"query_{i}_{j}" for j in range(len(seq_variants))])
+            variant_map.extend([i] * len(seq_variants))
+
+        # Run BLAST on expanded list
+        expanded_hits, _ = BLAST_batch_short(
+            expanded_all_word,
+            db=BLAST_db,
+            n_cpu=n_cpu,
+            seq_names=expanded_names,
+            mode='rough'
+        )
+        # Merge back to same length as all_word
+        merged_hits = [0] * len(all_word)
+        for variant_idx, hit_count in enumerate(expanded_hits):
+            merged_hits[variant_map[variant_idx]] += hit_count
+
+        all_hits = merged_hits
     else:
         logger.info('No BLAST database provided, skipped.')
         all_hits = np.zeros(len(all_word))
@@ -146,13 +187,23 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
     gc_arr = np.zeros(seq_len)
     comp_arr = np.zeros(seq_len)
     hits_arr = np.zeros(seq_len)
+    sensi_arr = np.zeros(seq_len)   # for normal mode, sensi_arr and combi_arr should always be 0.
+    combi_arr = np.zeros(seq_len)
     for pos in range(seq_len):
         n = pos//offset
         gc_arr[pos] = np.sum(all_gc[n:n+n_cycle])
         comp_arr[pos] = np.sum(all_complexity[n:n+n_cycle])
         hits_arr[pos] = np.sum(all_hits[n:n+n_cycle])
+
+        if deg:
+            sensi_arr[pos] = np.sum(100 - all_sensitivity[n:n+n_cycle])
+            combi_arr[pos] = np.sum(all_combinations[n:n+n_cycle]-1)
+
     gc_arr = gc_arr/n_cycle
     hits_arr = hits_arr/n_cycle
+    comp_arr = comp_arr/n_cycle
+    sensi_arr = sensi_arr/n_cycle   #if not deg_mode, 0 divided by any number should still be 0.
+    combi_arr = combi_arr/n_cycle
 
     olv_ref = {
         'seq': seq_raw, 
@@ -164,8 +215,11 @@ def run_build(fasta_path: str, var_path: str, BLAST_db: str, out_path: str, titl
         'comp_arr': comp_arr, 
         'var_arr': var_arr[start-1:stop], 
         'hits_arr': hits_arr, 
-        'all_hits': all_hits
+        'all_hits': all_hits,
+        'sensi_arr': sensi_arr,     # should be all zero for non-degenerate mode
+        'combi_arr': combi_arr      # should be all zero for non-degenerate mode
     }
+
     with open(save_path, 'wb') as f:
         pickle.dump(olv_ref, f, protocol=5) # protocol 5 needs python>=3.8
         logger.info('Reference file saved as %s' % save_path)

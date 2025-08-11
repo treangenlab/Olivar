@@ -113,6 +113,10 @@ def save(design_out, out_path: str):
         comp_arr = ref_info['comp_arr']
         hits_arr = ref_info['hits_arr']
         var_arr = ref_info['var_arr']
+
+        sensi_arr = ref_info['sensi_arr']
+        combi_arr = ref_info['combi_arr']
+
         seq_record = ref_info['seq_record']
         all_loss = ref_info['all_loss']
 
@@ -130,6 +134,10 @@ def save(design_out, out_path: str):
             'low complexity': comp_arr, 
             'non-specificity': hits_arr, 
             'variations': var_arr, 
+
+            'low sensitivity': sensi_arr,
+            'high combinations': combi_arr,
+
             'risk': risk_arr
         })
         save_path = os.path.join(out_path, '%s_risk.csv' % ref_name)
@@ -204,6 +212,26 @@ def save(design_out, out_path: str):
                 mode='lines',
                 line=dict(width=0, color='#d62728'),
                 name='variations',
+                stackgroup='one'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=sensi_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#d63ddb'),
+                name='sensitivity',
+                stackgroup='one'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=r, y=combi_arr,
+                hoverinfo='skip',
+                mode='lines',
+                line=dict(width=0, color='#62c8d1'),
+                name='combinations',
                 stackgroup='one'
             )
         )

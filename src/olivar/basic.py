@@ -21,6 +21,49 @@ import numpy as np
 import logging
 logger = logging.getLogger('main')
 
+IUPAC_CODES = {
+    'A': ['A'], 'C': ['C'], 'G': ['G'], 'T': ['T'],
+    'R': ['A', 'G'], 'Y': ['C', 'T'], 'S': ['G', 'C'], 'W': ['A', 'T'],
+    'K': ['G', 'T'], 'M': ['A', 'C'], 'B': ['C', 'G', 'T'], 'D': ['A', 'G', 'T'],
+    'H': ['A', 'C', 'T'], 'V': ['A', 'C', 'G'], 'N': ['A', 'C', 'G', 'T']
+}
+
+complement = {
+            'A':'T', 'T':'A', 'C':'G', 'G':'C', 'N':'N',
+            'a':'t', 't':'a', 'c':'g', 'g':'c', 'n':'n',
+            'R':'Y', 'Y':'R', 'S':'S', 'W':'W', 'K':'M', 'M':'K',
+            'B':'V', 'V':'B', 'D':'H', 'H':'D',
+            'r':'y', 'y':'r', 's':'s', 'w':'w', 'k':'m', 'm':'k',
+            'b':'v', 'v':'b', 'd':'h', 'h':'d',
+            '0':'1', '1':'0', '2':'3', '3':'2', '4':'4',
+            0:1, 1:0, 2:3, 3:2, 4:4
+}
+
+degenerate_bases = {
+        frozenset(['A', 'C']): 'M',
+        frozenset(['A', 'G']): 'R',
+        frozenset(['A', 'T']): 'W',
+        frozenset(['C', 'G']): 'S',
+        frozenset(['C', 'T']): 'Y',
+        frozenset(['G', 'T']): 'K',
+        frozenset(['A', 'C', 'G']): 'V',
+        frozenset(['A', 'C', 'T']): 'H',
+        frozenset(['A', 'G', 'T']): 'D',
+        frozenset(['C', 'G', 'T']): 'B',
+        frozenset(['A', 'C', 'G', 'T']): 'N',
+
+        frozenset(['a', 'c']): 'm',
+        frozenset(['a', 'g']): 'r',
+        frozenset(['a', 't']): 'w',
+        frozenset(['c', 'g']): 's',
+        frozenset(['c', 't']): 'y',
+        frozenset(['g', 't']): 'k',
+        frozenset(['a', 'c', 'g']): 'v',
+        frozenset(['a', 'c', 't']): 'h',
+        frozenset(['a', 'g', 't']): 'd',
+        frozenset(['c', 'g', 't']): 'b',
+        frozenset(['a', 'c', 'g', 't']): 'n'
+}
 
 def revcomp(seq):
     '''
@@ -32,30 +75,14 @@ def revcomp(seq):
     output:
         reverse complement of input
     '''
-    if isinstance(seq, str):
-        complement = {'A':'T', 'T':'A', 'C':'G', 'G':'C', 'N':'N', 
-        'a':'t', 't':'a', 'c':'g', 'g':'c', 'n':'n', 
-        '0':'1', '1':'0', '2':'3', '3':'2', '4':'4'}
+    if isinstance(seq, str) or isinstance(seq, list):
         try:
             bases = [complement[base] for base in seq]
         except KeyError:
-            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}...', ambiguous bases are not accepted.")
-        bases.reverse()
-        return ''.join(bases)
-    elif isinstance(seq, list):
-        complement = {'A':'T', 'T':'A', 'C':'G', 'G':'C', 'N':'N', 
-        'a':'t', 't':'a', 'c':'g', 'g':'c', 'n':'n', 
-        '0':'1', '1':'0', '2':'3', '3':'2', '4':'4', 
-        0:1, 1:0, 2:3, 3:2, 4:4}
-        try:
-            bases = [complement[base] for base in seq]
-        except KeyError:
-            raise ValueError(f"Base(s) other than 'A', 'T', 'C', 'G' is found in '{seq[:10]}...', ambiguous bases are not accepted.")
-        bases.reverse()
-        return bases
+            raise ValueError(f"Unrecoginized bases are found in sequence.")
+        return ''.join(reversed(bases)) if isinstance(seq, str) else list(reversed(bases))
     else:
-        raise ValueError('Only string or list is accepted for reverse complement.')
-
+        raise ValueError('Only string or list input is accepted for reverse complement.')
 
 def get_GC(seq):
     '''
@@ -245,3 +272,22 @@ def get_complexity(seq):
     SE2 = -np.sum(p2 * np.log2(p2))
     SE3 = -np.sum(p3 * np.log2(p3))
     return min([SE1/2, SE2/4, SE3/6])
+
+def get_combinations(seq):
+    """Calculate the total number of possible sequence combinations from a degenerate sequence."""
+    score = 1
+    for char in seq:
+        score *= len(IUPAC_CODES.get(char, [char]))  # Default to 1 if char is standard
+    return score
+
+def get_degenerate_base(bases):
+    """Return the IUPAC degenerate base code for a set of nucleotides"""
+    if isinstance(bases, str):
+        unique_bases = set(bases)
+    else:
+        unique_bases = {b for b in bases}
+    
+    if len(unique_bases) == 1:
+        return unique_bases.pop()
+    
+    return degenerate_bases.get(frozenset(unique_bases), 'N')

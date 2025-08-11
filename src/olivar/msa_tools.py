@@ -26,6 +26,8 @@ from tqdm import tqdm
 from plotly import graph_objects as go
 import pandas as pd
 
+from itertools import product
+
 # seed random generator
 rng = np.random.default_rng(seed=0)
 
@@ -90,6 +92,32 @@ AMBREP = {
 }
 ALPHABET = set(AMBFREQ)
 
+# Define IUPAC degenerate base codes
+IUPAC_DEGENERATE = {
+    'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
+    'AC': 'M', 'AG': 'R', 'AT': 'W', 'CG': 'S',
+    'CT': 'Y', 'GT': 'K', 'ACG': 'V', 'ACT': 'H',
+    'AGT': 'D', 'CGT': 'B', 'ACGT': 'N'
+}
+
+IUPAC_CODES = {
+    'A': ['A'], 'a': ['a'],
+    'C': ['C'], 'c': ['c'],
+    'G': ['G'], 'g': ['g'],
+    'T': ['T'], 't': ['t'],
+    'R': ['A', 'G'], 'r': ['a', 'g'],
+    'Y': ['C', 'T'], 'y': ['c', 't'],
+    'S': ['G', 'C'], 's': ['g', 'c'],
+    'W': ['A', 'T'], 'w': ['a', 't'],
+    'K': ['G', 'T'], 'k': ['g', 't'],
+    'M': ['A', 'C'], 'm': ['a', 'c'],
+    'B': ['C', 'G', 'T'], 'b': ['c', 'g', 't'],
+    'D': ['A', 'G', 'T'], 'd': ['a', 'g', 't'],
+    'H': ['A', 'C', 'T'], 'h': ['a', 'c', 't'],
+    'V': ['A', 'C', 'G'], 'v': ['a', 'c', 'g'],
+    'N': ['A', 'C', 'G', 'T'], 'n': ['a', 'c', 'g', 't']
+}
+
 # create substitution matrix for local pairwise alignment
 from Bio.Align.substitution_matrices import Array
 SUBMTX = Array(tuple(AMBFREQ), dims=2) - 1 # set mismatch_score = -1
@@ -131,31 +159,36 @@ def run_cmd(*args) -> str:
         log_and_raise(Exception, cmd_out.stderr)
     return cmd_out.stdout
 
-
-def mp_wrapper(func: callable, all_args: iter, n_cpu: int=1, text: str|None=None) -> list:
+def mp_wrapper(func: callable, all_args: iter, n_cpu: int=1, text: str|None=None, show_progress: bool=True) -> list:
     '''Wrapper for multiprocessing.Pool()
     Args:
         func (callable): function for multiprocessing
         all_args (iter): k-mer length for minimizer sketch
-        n_cpu (int): number of processes to run in parallele [1]
+        n_cpu (int): number of processes to run in parallel [1]
         text (str): message to be printed when multiprocessing starts [None]
+        show_progress (bool): whether to display tqdm progress bar [True]
 
     Returns:
         func_out (list): func outputs in a list in the same order as all_args
     '''
     if text:
         logger.info(f'{text} (threads={n_cpu})')
+
     if n_cpu == 1:
-        func_out = [func(*args) for args in tqdm(all_args, ascii=' >')]
+        # Disable tqdm if show_progress is False
+        func_out = [func(*args) for args in (tqdm(all_args, ascii=' >') if show_progress else all_args)]
     elif n_cpu > 1:
         with multiprocessing.Pool(processes=n_cpu) as pool:
             tik = time()
             func_out = pool.starmap(func, all_args)
     else:
         log_and_raise(ValueError, 'n_cpu should be an integer')
+
     if text:
         print_time_delta(time()-tik)
+
     return func_out
+
 
 
 def n_chunk(ls: list, n: int):
@@ -370,7 +403,7 @@ class MSA(object):
     def __init__(self, fasta_path: str, n_cpu: int=1) -> None:
         self.primers = dict()
 
-        logger.info(f'Loading MSA from {fasta_path} (threads={n_cpu})...')
+        # logger.info(f'Loading MSA from {fasta_path} (threads={n_cpu})...')
         tik = time()
         msa = [record.seq for record in SeqIO.parse(fasta_path, 'fasta')]
         # convert to numpy matrix (all characters are converted to uppercase)
@@ -390,24 +423,50 @@ class MSA(object):
         # self.msa = Align.read(fasta_path, 'fasta')
         # self.matrix = np.array(self.msa, dtype='U')
 
-        self._get_consensus(n_cpu)
-        print_time_delta(time()-tik)
+        self._get_consensus(n_cpu, show_progress=False)
+        # print_time_delta(time()-tik)
     
-    def _get_consensus(self, n_cpu: int=1) -> None:
+    def _get_consensus(self, n_cpu: int=1, deg: bool=False, show_progress: bool=True) -> None:
         '''Calculate the concensus sequence
         '''
         # count the number of each base for each MSA column
         # returns a matrix with 5 rows (bases) and self.col columns
-        logger.info(f' - Generating consensus ({self.row} rows, {self.col} columns)...')
+        # logger.info(f' - Generating consensus ({self.row} rows, {self.col} columns)...')
         count_bases_args = [
             (self.matrix[:, i],) # count_bases() only has one argument
             for i in range(self.col)
         ]
         self.vote = np.array(mp_wrapper(
-            count_bases, count_bases_args, n_cpu, 
+            count_bases, count_bases_args, n_cpu, show_progress=show_progress
         )).T # transpose the matrix, so that it has 5 rows (bases) and self.col columns
-        # find the most frequent base for each column
-        consensus = np.array([DNA[i] for i in np.argmax(self.vote, axis=0)])
+        
+        if not deg:
+            # find the most frequent base for each column
+            consensus = np.array([DNA[i] for i in np.argmax(self.vote, axis=0)])
+        else:
+            consensus = []
+            for i in range(self.col):
+                base_counts = self.vote[:, i]
+                total_count = np.sum(base_counts)
+                gap_freq = base_counts[DNA.index('-')] / total_count  # Frequency of gaps
+                
+                if gap_freq > 0.5:
+                    consensus.append('-')
+                else:
+                    # Exclude gaps and normalize frequencies
+                    base_freqs = {DNA[j]: base_counts[j] for j in range(4)}  # ACTG only
+                    sorted_bases = sorted(base_freqs.items(), key=lambda x: x[1], reverse=True)
+                    
+                    accumulated_freq = 0
+                    selected_bases = []
+                    for base, count in sorted_bases:
+                        accumulated_freq += count / (total_count * (1 - gap_freq))  # Normalize w/o gaps
+                        selected_bases.append(base)
+                        if accumulated_freq >= 0.7:     # Can set this as a threshold later
+                            break
+                    degenerate_base = IUPAC_DEGENERATE.get("".join(sorted(selected_bases)), 'N')
+                    consensus.append(degenerate_base)
+            consensus = np.array(consensus)
         
         # get the gapless consensus string, and a mapping of its positions to MSA columns, 
         # so that when a sequence is aligned to the gapless consensus, we can also know where it aligns to the MSA
@@ -678,7 +737,7 @@ class MSA(object):
             fig.write_html(f'{save_path}')
 
 
-def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1, min_var: float=0.01) -> None:
+def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1, min_var: float=0.01, deg: bool=False) -> None:
     msa = MSA(msa_path, n_cpu)
     var_dict = msa.variant_call()
 
@@ -688,6 +747,7 @@ def run_variant_call(msa_path: str, msa_filename: str, prefix: str|None=None, n_
     if not os.path.exists(prefix):
         os.makedirs(prefix)
     
+    msa._get_consensus(n_cpu, deg=deg)
     consens_path = os.path.join(prefix, f'{msa_filename}_consensus.fasta')
     SeqIO.write(
         SeqRecord(Seq(msa.consensus), id=msa_filename, description='consensus sequence'), 
@@ -735,15 +795,59 @@ def run_validate(msa_path: str, primer_pool: str, pool: int, out_path: str, titl
         SeqIO.write(consensus_record, f, 'fasta')
     msa.plot(os.path.join(out_path, title + f'_pool-{pool}.html'))
 
-def run_preprocess(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1, min_var: float=0.01):
+def run_preprocess(msa_path: str, msa_filename: str, prefix: str|None=None, n_cpu: int=1, min_var: float=0.01, deg: bool=False):
     if prefix is None:
         prefix = msa_path
 
     logger.info("Running variant calling to extract consensus and SNPs...")
-    consens_path, var_path = run_variant_call(msa_path, msa_filename, prefix, n_cpu, min_var)
+    consens_path, var_path = run_variant_call(msa_path, msa_filename, prefix, n_cpu, min_var, deg)
 
     return consens_path, var_path
 
+def get_sensitivity(seq: str, start: int, stop: int, msa_path: str, deg: bool):
+    """
+    Calculate sensitivity for a given sequence window.
+    
+    Args:
+        seq: The sequence window (e.g., "ATGC")
+        start: Start position (0-based)
+        stop: Stop position (exclusive)
+        msa_path: Path to the MSA file
+        deg: Whether the sequence is degenerate
+    """
+    msa = MSA(msa_path)
+    msa._get_consensus(deg=deg, show_progress=False)
+    
+    # fetch MSA columns of the primer
+    msa_slice = msa.matrix[:, 
+        msa._consensus2msa[start]: msa._consensus2msa[stop]
+    ]
+    msa_slice = [''.join(s).replace('-', '') for s in msa_slice]
+    n_perfect_match = len([True for s in msa_slice if s in expand_degenerate_sequence(seq)])
+    
+    sensitivity = (100 * n_perfect_match / msa.row) if msa else 0
+    return sensitivity
+
+def expand_degenerate_sequence(seq):
+    """Generate all possible standard DNA sequences from a sequence containing degenerate bases."""
+    # expanded = [IUPAC_CODES[base.upper()] for base in seq]
+    expanded = [IUPAC_CODES[base] for base in seq]
+    return [''.join(p) for p in product(*expanded)]
+
+def average_scores(words, scoring_function, all_word_positions=None, *args):
+    scores = []
+    for i, word in enumerate(words):
+        expanded_words = expand_degenerate_sequence(word)
+        
+        # If positions are provided (for get_sensitivity), pass them
+        if all_word_positions is not None:
+            word_start, word_stop = all_word_positions[i]
+            expanded_scores = [scoring_function(w, word_start, word_stop, *args) for w in expanded_words]
+        else:
+            expanded_scores = [scoring_function(w, *args) for w in expanded_words]
+            
+        scores.append(sum(expanded_scores) / len(expanded_scores))
+    return np.array(scores)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -103,6 +103,7 @@ olivar tiling example_output/EPI_ISL_402124.olvr -o example_output --max-amp-len
 | olivar-design.primer.bed| Primer sequences and coordinates in [ARTIC/PrimalScheme](https://github.com/artic-network/primer-schemes/tree/master/nCoV-2019) (BED) format. |
 | olivar-design_SADDLE_Loss.html| Learning curve for primer dimer optimization. |
 | olivar-design.json| Design configurations. |
+| olivar-design.log| Log file for titling process. |
 | EPI_ISL_402124_ref.fasta| Reference sequence. |
 | EPI_ISL_402124.html| An interactive plot to view primers and the risk array. |
 | EPI_ISL_402124_PDR_Loss.html| Learning curve for PDR optimization. |
@@ -161,7 +162,7 @@ Refer to [example.py](example.py) for more details.
 #### sub-command: `build`
 ```
 olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>] 
-[--output <string>] [--title <string>] [--threads <int>] [--align] [--min-var <float>]
+[--output <string>] [--title <string>] [--threads <int>] [--min-var <float>] [--align] [--deg]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -172,16 +173,18 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 |--output, -o| ./| Output directory (output to current directory by default).|
 |--title, -t| FASTA record ID| Name of the Olivar reference file.|
 |--threads, -p| 1| Number of threads.|
-|--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
 |--min-var| 0.01| Minimum frequency threshold for sequence variations generated from the input MSA.|
+|--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
+|--deg| N/A| Boolean flag. If enabled, builds the reference file using degenerate IUPAC nucleotide codes to represent variations (e.g., "R" for A/G, "Y" for C/T).|
 
 #### sub-command: `tiling`
 ```
 olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <int>] 
-[--min-amp-len <int>] [--w-egc <float>] [--w-lc <float>] [--w-ns <float>] [--w-var <float>] 
-[--temperature <float>] [--salinity <float>] [--dg-max <float>] [--min-gc <float>] 
-[--max-gc <float>] [--min-complexity <float>] [--max-len <int>] [--check-var] 
-[--fp-prefix <DNA>] [--rp-prefix <DNA>] [--seed <int>] [--threads <int>] [--iterMul <int>]
+[--min-amp-len <int>] [--w-egc <float>] [--w-lc <float>] [--w-ns <float>] [--w-var <float>]
+[--w-sensi <float>] [--w-combi <float>] [--temperature <float>] [--salinity <float>]
+[--dg-max <float>] [--min-gc <float>] [--max-gc <float>] [--min-complexity <float>]
+[--max-len <int>] [--check-var] [--fp-prefix <DNA>] [--rp-prefix <DNA>] [--seed <int>]
+[--threads <int>] [--iterMul <int>] [--deg]
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
@@ -194,6 +197,8 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--w-lc| 1.0| Weight for low sequence complexity.|
 |--w-ns| 1.0| Weight for non-specificity.|
 |--w-var| 1.0| Weight for variations.|
+|--w-sensi| 1.0| Weight for sensitivity.|
+|--w-combi| 1.0| Weight for combinations.|
 |--temperature| 60.0| PCR annealing temperature.|
 |--salinity| 0.18| Concentration of monovalent ions in units of molar.|
 |--dg-max| -11.8| Maximum free energy change of a primer in kcal/mol.|
@@ -207,6 +212,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
 |--iterMul| 1| Multiplier of iterations during PDR optimization.|
+|--deg| N/A| Boolean flag. If enabled, design primers using degenerate IUPAC nucleotide codes to represent variations (e.g., "R" for A/G, "Y" for C/T).|
 
 #### sub-command: `save`
 ```

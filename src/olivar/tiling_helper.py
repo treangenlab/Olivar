@@ -16,6 +16,8 @@ from math import floor
 # imternal modules
 import basic
 import design
+from msa_tools import Primer, expand_degenerate_sequence
+from collections import defaultdict
 
 # algorithmic parameters
 PRIMER_DESIGN_LEN = 40 # length of primer design region [40]
@@ -109,7 +111,7 @@ def generate_context(SOI):
     return all_context_seq, all_risk, loss
 
 
-def design_context_seq(config):
+def design_context_seq(config, deg: bool):
     '''
     PDR optimization. 
     Input:
@@ -123,9 +125,17 @@ def design_context_seq(config):
     w_complexity = config['w_lc']
     w_hits = config['w_ns']
     w_var = config['w_var']
+
+    w_sensi = config['w_sensi']
+    w_combi = config['w_combi']
+
     seed = config['seed']
     n_cpu = config['threads']
     iterMul = config['iterMul']
+
+    if not deg:
+        w_sensi = 0
+        w_combi = 0
     
     # set random number generator
     rng_parent = default_rng(seed)
@@ -141,6 +151,10 @@ def design_context_seq(config):
     comp_arr = olv_ref['comp_arr']
     var_arr = olv_ref['var_arr']
     hits_arr = olv_ref['hits_arr']
+
+    sensi_arr = olv_ref['sensi_arr']
+    combi_arr = olv_ref['combi_arr']
+
     logger.info('Successfully loaded reference file %s' % ref_path)
     
     if not config['min_amp_len']:
@@ -152,6 +166,7 @@ def design_context_seq(config):
 
     gc_arr = np.logical_or(gc_arr<LOWER_GC, gc_arr>UPPER_GC).astype(int)
     comp_arr = (comp_arr < LOW_COMPLEXITY).astype(int)
+    
     if max(hits_arr) != 0:
         hits_arr = hits_arr/max(hits_arr) # normalize
 
@@ -161,8 +176,11 @@ def design_context_seq(config):
     hits_arr = w_hits*np.concatenate((np.zeros(start-1), hits_arr, np.zeros(len(seq_raw)-stop)))
     var_arr = w_var*10*np.concatenate((np.zeros(start-1), var_arr, np.zeros(len(seq_raw)-stop)))
 
+    sensi_arr = w_sensi*0.1*np.concatenate((np.zeros(start-1), sensi_arr, np.zeros(len(seq_raw)-stop)))
+    combi_arr = w_combi*np.concatenate((np.zeros(start-1), combi_arr, np.zeros(len(seq_raw)-stop)))
+
     # construct risk array (first row is risk, second row is coordinate on seq_rawy)
-    risk_arr = gc_arr + comp_arr + hits_arr + var_arr
+    risk_arr = gc_arr + comp_arr + hits_arr + var_arr + sensi_arr + combi_arr
 
     N = iterMul * 500*len(risk_arr)//max_amp_len # number of primer sets to generate
     #N = 100
@@ -220,8 +238,7 @@ def design_context_seq(config):
     cover_stop = all_context_seq[-1][2]-1
     logger.info('covered region: %d:%d' % (cover_start, cover_stop))
     logger.info('coverage of reference sequence: %.3f%%' % (100*(cover_stop-cover_start+1)/len(seq_raw)))
-    return all_plex_info, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, olv_ref['seq_record']
-
+    return all_plex_info, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, sensi_arr, combi_arr, all_loss, olv_ref['seq_record']
 
 def get_primer(all_plex_info, config):
     '''
@@ -255,6 +272,7 @@ def get_primer(all_plex_info, config):
     fP_generator = design.primer_generator(temperature_fP, salinity)
     rP_generator = design.primer_generator(temperature_rP, salinity)
     n = 0
+
     for plex_id, plex_info in tqdm(all_plex_info.items(), ascii=' >'):
         # set primer prefix
         fP_prefix = fP_adapter
@@ -279,7 +297,7 @@ def get_primer(all_plex_info, config):
                 fP_setting['min_complexity'] -= 0.05
             # generate primers again
             fP, fail = fP_generator.get(fP_design, fP_prefix, check_BLAST=check_BLAST, **fP_setting)
-        plex_info['fP_candidate'] = fP
+        plex_info['fP_candidate'] = fP      # each fp is a primer list
         plex_info['fP_setting'] = fP_setting
         
         # generate rP
@@ -300,12 +318,40 @@ def get_primer(all_plex_info, config):
                 rP_setting['min_complexity'] -= 0.05
             # generate primers again
             rP, fail = rP_generator.get(rP_design, rP_prefix, check_BLAST=check_BLAST, **rP_setting)
-        plex_info['rP_candidate'] = rP
+        plex_info['rP_candidate'] = rP      # each rp is a primer list
         plex_info['rP_setting'] = rP_setting
         
     logger.info('Finished in %.3fs' % (time()-tik))
     return all_plex_info
 
+
+def get_concentration(primer_dict, primer_type='fP'):
+    """
+    Prepare primer sequences and concentrations for PrimerSetBadnessFast calculation.
+    
+    Args:
+        primer_dict: Dictionary mapping plex_id to primer sequence (either fp['seq'] or rp['seq'])
+        primer_type: Either 'fP' (forward primer) or 'rP' (reverse primer)
+        
+    Returns:
+        tuple: (flattened_sequences, concentrations)
+    """
+    seq_conc_map = defaultdict(float)  # seq -> total concentration
+
+    for plex_id, seq_list in primer_dict.items():
+        num_variants = len(seq_list)
+        if num_variants == 0:
+            continue
+        conc_per_variant = 1.0 / num_variants
+
+        for seq in seq_list:
+            seq_conc_map[seq] += conc_per_variant  # accumulate if repeated
+
+    # Convert dict to parallel lists
+    unique_seqs = list(seq_conc_map.keys())
+    total_concs = list(seq_conc_map.values())
+
+    return unique_seqs, total_concs
 
 def optimize(all_plex_info, config):
     '''
@@ -358,7 +404,7 @@ def optimize(all_plex_info, config):
         curr_tube = [plex_id for plex_id, plex_info in all_plex_info.items() if plex_info['tube'] == i_tube]
 
         # load existing primers
-        #existing_primer = config['existing_primer']
+        # existing_primer = config['existing_primer']
         existing_primer = []
 
         # randomly select one primer set (one pair each plex)
@@ -366,6 +412,7 @@ def optimize(all_plex_info, config):
         curr_fp = {}
         curr_rp = {}
         curr_badness = 0
+
         for plex_id in curr_tube:
             # randomly select one primer pair
             i = floor(rand() * len(all_plex_info[plex_id]['optimize']))
@@ -375,7 +422,21 @@ def optimize(all_plex_info, config):
             curr_fp[plex_id] = fp['seq']
             curr_rp[plex_id] = rp['seq']
             curr_badness += fp['badness'] + rp['badness']
-        inter_badness, comp_badness = design.PrimerSetBadnessFast(list(curr_fp.values()), list(curr_rp.values()), existing_primer)
+
+        curr_fp_seqs, curr_fp_concs = get_concentration(curr_fp, 'fP')
+        curr_rp_seqs, curr_rp_concs = get_concentration(curr_rp, 'rP')
+
+        inter_badness, comp_badness = design.PrimerSetBadnessFast(
+            curr_fp_seqs, 
+            curr_rp_seqs, 
+            existing_primer,
+            curr_fp_concs,
+            curr_rp_concs
+        )
+
+        #inter_badness, comp_badness = design.PrimerSetBadnessFast(list(curr_fp.values()), list(curr_rp.values()), existing_primer)
+        #inter_badness, comp_badness = design.PrimerSetBadnessFast(all_fp_extended, all_rp_extended, existing_primer)
+        
         curr_badness += inter_badness
         logger.info('initial loss = %.3f' % curr_badness)
 
@@ -401,12 +462,25 @@ def optimize(all_plex_info, config):
                 new_index[mutplex] = mutindex
                 new_fp[mutplex] = all_plex_info[mutplex]['optimize'][mutindex][0]['seq']
                 new_rp[mutplex] = all_plex_info[mutplex]['optimize'][mutindex][1]['seq']
+                
                 new_badness = 0
                 for plex_id, i in new_index.items():
                     fp = all_plex_info[plex_id]['optimize'][i][0]
                     rp = all_plex_info[plex_id]['optimize'][i][1]
                     new_badness += fp['badness'] + rp['badness']
-                inter_badness, new_comp_badness = design.PrimerSetBadnessFast(list(new_fp.values()), list(new_rp.values()), existing_primer)
+                
+                # Prepare primer inputs using helper function
+                new_fp_seqs, new_fp_concs = get_concentration(new_fp, 'fP')
+                new_rp_seqs, new_rp_concs = get_concentration(new_rp, 'rP')
+
+                # Calculate badness with concentrations
+                inter_badness, new_comp_badness = design.PrimerSetBadnessFast(
+                    new_fp_seqs,
+                    new_rp_seqs,
+                    existing_primer,
+                    new_fp_concs,
+                    new_rp_concs
+                )
                 new_badness += inter_badness
                 
                 # calculate probability of accepting mutation
@@ -499,8 +573,41 @@ def to_df(all_plex_info, config):
         curr_fp = plex_info['fP'] # fP object
         curr_rp = plex_info['rP']
 
-        curr_fp_seq = curr_fp['seq'][l_fP_adp:] # fP sequence
-        curr_rp_seq = curr_rp['seq'][l_rP_adp:]
+        if isinstance(curr_fp['seq'], str):
+            curr_fp['seq'] = [curr_fp['seq']]
+        if isinstance(curr_rp['seq'], str):
+            curr_rp['seq'] = [curr_rp['seq']]
+
+        if len(curr_fp['seq']) > 1:
+            max_len = max(len(seq) for seq in curr_fp['seq'])
+            degenerate_seq = []
+            for i in range(max_len):
+                position_bases = []
+                for seq in curr_fp['seq']:
+                    if i < len(seq):
+                        position_bases.append(seq[i])
+                degenerate_base = basic.get_degenerate_base(position_bases)
+                degenerate_seq.append(degenerate_base)
+            curr_fp['seq'] = [''.join(degenerate_seq)]
+
+        # Generate degenerate sequence if multiple sequences exist
+        if len(curr_rp['seq']) > 1:
+            # Find the maximum length among all sequences
+            max_len = max(len(seq) for seq in curr_rp['seq'])
+            
+            degenerate_seq = []
+            for i in range(max_len):
+                # Get all bases at this position (for sequences that are long enough)
+                position_bases = []
+                for seq in curr_rp['seq']:
+                    if i < len(seq):
+                        position_bases.append(seq[i])
+                degenerate_base = basic.get_degenerate_base(position_bases)
+                degenerate_seq.append(degenerate_base)
+            curr_rp['seq'] = [''.join(degenerate_seq)]
+
+        curr_fp_seq = curr_fp['seq'][0][l_fP_adp:] # fP sequence
+        curr_rp_seq = curr_rp['seq'][0][l_rP_adp:]
         # if curr_fp_seq != curr_fp_seq.lower() or curr_rp_seq != curr_rp_seq.lower():
         #     print(plex_id)
 
@@ -522,8 +629,8 @@ def to_df(all_plex_info, config):
         amp.append(curr_context_seq[curr_start-pc[0]:curr_end-pc[0]+1])
         insert.append(curr_context_seq[curr_insert_start-pc[0]:curr_insert_end-pc[0]+1])
 
-        fp_full.append(curr_fp['seq']) # fP with adapter/prefix
-        rp_full.append(curr_rp['seq'])
+        fp_full.append(curr_fp['seq'][0]) # fP with adapter/prefix
+        rp_full.append(curr_rp['seq'][0])
 
         # ARTIC columns (use 0-based coordinates for BED format)
         # first fP, then rP

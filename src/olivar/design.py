@@ -35,6 +35,8 @@ from basic import revcomp
 import logging
 logger = logging.getLogger('main')
 
+from msa_tools import average_scores, expand_degenerate_sequence
+
 
 GC_LETTER = ['C', 'G', 'c', 'g']
 
@@ -179,10 +181,10 @@ class primer_generator(object):
 
         # input should be lowercase
         if seq == seq.upper(): # all uppercase
-            logger.info('input sequence should be in lowercase, with SNPs in uppercase. ')
+            # logger.info('input sequence should be in lowercase, with SNPs in uppercase. ')
             seq = seq.lower()
             if check_SNP:
-                logger.info('ignore check_SNP')
+                # logger.info('ignore check_SNP')
                 check_SNP = False
 
         primer_seq = [] # primer sequence
@@ -208,37 +210,44 @@ class primer_generator(object):
                     SNP_fail += 1
                     continue
             start_pos = end_pos - 1
-            curr_dG = self.dG_init + self.StacksDG(seq[start_pos:end_pos+1])
+            curr_dG = self.dG_init + average_scores(expand_degenerate_sequence(seq[start_pos:end_pos+1]), self.StacksDG)[0] 
             # satisfy minimum length
             while (start_pos > end_pos - min_len + 1) and (start_pos > 0):
                 start_pos -= 1
-                curr_dG += self.StacksDG(seq[start_pos:(start_pos+2)])
+                curr_dG += average_scores(expand_degenerate_sequence(seq[start_pos:(start_pos+2)]), self.StacksDG)[0] 
             # long enough to satisfy energy but not exceeding max_len
             while (curr_dG > dG_max) and (start_pos > end_pos - max_len + 1) and (start_pos > 0):
                 start_pos -= 1
-                curr_dG += self.StacksDG(seq[start_pos:(start_pos+2)])
+                curr_dG += average_scores(expand_degenerate_sequence(seq[start_pos:(start_pos+2)]), self.StacksDG)[0]    
             # check restrictions
             if (curr_dG <= dG_max) or (end_pos - start_pos + 1 == max_len):
-                GC_ratio = basic.get_GC(seq[start_pos:end_pos+1])
+                GC_ratio = average_scores([seq[start_pos:end_pos+1]],basic.get_GC)[0]
                 if min_GC <= GC_ratio <= max_GC:
-                    complexity = basic.get_complexity(seq[start_pos:end_pos+1])
+                    complexity = average_scores([seq[start_pos:end_pos+1]], basic.get_complexity)[0]
                     if complexity >= min_complexity:
                         s_raw = seq[start_pos:end_pos+1]
                         s = prefix + s_raw
-                        primer_seq.append(s)
-                        primer_arr.append(basic.seq2arr(s))
+
+                        s_expand = expand_degenerate_sequence(s)
+                        primer_seq.append(s_expand)
+                        primer_arr.append([basic.seq2arr(s) for s in s_expand])
+
                         primer_len.append(end_pos - start_pos + 1)
                         primer_dist.append(len(seq) - end_pos - 1)
                         primer_dG.append(curr_dG)
+
                         if check_BLAST:
                             #count = BLAST_seq(s_raw, **BLAST_config)
                             if count > 0:
-                                b = INTR_SCORE * WAlignScore(s) + 1000 * np.log10(count)**4
+                                #b = INTR_SCORE * WAlignScore(s) + 1000 * np.log10(count)**4
+                                b = INTR_SCORE * average_scores(s_expand, WAlignScore)[0] + 1000 * np.log10(count)**4
                             else:
-                                b = INTR_SCORE * WAlignScore(s)
+                                #b = INTR_SCORE * WAlignScore(s)
+                                b = INTR_SCORE * average_scores(s_expand, WAlignScore)[0]
                         else:
                             count = -1
-                            b = INTR_SCORE * WAlignScore(s)
+                            #b = INTR_SCORE * WAlignScore(s)
+                            b = INTR_SCORE * average_scores(s_expand, WAlignScore)[0]
                         BLAST_hits.append(count)
                         badness.append(b)
                     else:
@@ -248,20 +257,23 @@ class primer_generator(object):
         primers = pd.DataFrame({'seq': primer_seq, 
                                 'arr': primer_arr, 
                                 'primer_len': primer_len, 
-                                'dist': primer_dist, 
+                                'dist': primer_dist,    # distance from the primer to the end of seq
                                 'badness': badness, 
                                 'dG': primer_dG, 
                                 'BLAST_hits': BLAST_hits})
+
         return primers, {'end_fail': end_fail, 'SNP_fail': SNP_fail, 
         'GC_fail': GC_fail, 'complexity_fail': complexity_fail}
 
 
-def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
+def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[], fP_conc=None, rP_conc=None):
     '''
     Input:
         all_fP: list of strings
         all_rP: list of strings
         existing: list of strings
+        fP_conc: list of concentrations for forward primers (optional)
+        rP_conc: list of concentrations for reverse primers (optional)
     Output:
         Badness: total Loss of the primer set (all fP and rP)
         Badness_component: Badness of each primer
@@ -282,33 +294,64 @@ def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
 
     # NOTE: Intramolecular checks done at GeneratePrimerCandidates to be efficient
 
-    # set all sequences as lowercase
-    all_fP = [p.lower() for p in all_fP]
-    all_rP = [p.lower() for p in all_rP]
-    existing = [p.lower() for p in existing]
+    def flatten(lst):
+        flat_list = []
+        for item in lst:
+            if isinstance(item, list):
+                flat_list.extend(flatten(item))  # Recursively flatten nested lists
+            else:
+                flat_list.append(item)
+        return flat_list
+    
+    all_fP = flatten(all_fP) if all_fP else []
+    all_rP = flatten(all_rP) if all_rP else []
+    existing = flatten(existing) if existing else []
+
+    # Handle concentrations (default to 1.0 if not provided)
+    if fP_conc is None:
+        fP_conc = [1.0] * len(all_fP)
+    else:
+        fP_conc = flatten(fP_conc)
+        if len(fP_conc) != len(all_fP):
+            fP_conc = [1.0] * len(all_fP)
+    
+    if rP_conc is None:
+        rP_conc = [1.0] * len(all_rP)
+    else:
+        rP_conc = flatten(rP_conc)
+        if len(rP_conc) != len(all_rP):
+            rP_conc = [1.0] * len(all_rP)
+    
+    all_fP = [str(p.lower()) for p in all_fP]
+    all_rP = [str(p.lower()) for p in all_rP]
+    existing = [str(p.lower()) for p in existing]
 
     # Set up end hash tables (check end 4 nt to middle binding)
-    for p in all_fP+all_rP+existing:
-        endhash4[p[-4:]] += 1
-        endhash5[p[-5:]] += 1
-        endhash6[p[-6:]] += 1
+    for p, conc in zip(all_fP + all_rP + existing, 
+                       fP_conc + rP_conc + [1.0]*len(existing)):
+        endhash4[p[-4:]] += conc
+        endhash5[p[-5:]] += conc
+        endhash6[p[-6:]] += conc
         
     # Set up middle hash table
     # Middlehash penalizes based on closeness to 3' end, Badness = 2 / (distance to 3' + 2);
     # So absolute last 7 is worth 1, 1nt away is worth 0.67, 2nt away is worth 0.5, etc.
-    for p in all_fP+all_rP+existing:
+    for p, conc in zip(all_fP + all_rP + existing,
+                      fP_conc + rP_conc + [1.0]*len(existing)):
         l = len(p)
         for j in range(l-6):
-            middlehash7[p[j:j+7]] += (PENALTY_OFFSET + 1) / (l - j - 6 + PENALTY_OFFSET)
+            middlehash7[p[j:j+7]] += conc * (PENALTY_OFFSET + 1) / (l - j - 6 + PENALTY_OFFSET)
         for j in range(l-7):
-            middlehash8[p[j:j+8]] += (PENALTY_OFFSET + 1) / (l - j - 7 + PENALTY_OFFSET)
+            middlehash8[p[j:j+8]] += conc * (PENALTY_OFFSET + 1) / (l - j - 7 + PENALTY_OFFSET)
 
     # Run through each sequence's reverse complement to add up badness
     Badness = 0
     Badness_component = []
-    for one_side_primer in [all_fP, all_rP]:
+    # for one_side_primer in [all_fP, all_rP]:
+    for one_side_primer, one_side_conc in zip([all_fP, all_rP], [fP_conc, rP_conc]):
         one_side_badness = []
-        for p in one_side_primer:
+        # for p in one_side_primer:
+        for p, conc in zip(one_side_primer, one_side_conc):
             p_badness = 0
             c = basic.revcomp(p)
             l = len(c)
@@ -317,7 +360,7 @@ def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
                 try:
                     endscore4 = endhash4[k]
                     numGC = len([b for b in k if b in GC_LETTER])
-                    p_badness += (endscore4 * END4 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
+                    p_badness += conc * (endscore4 * END4 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
                 except KeyError:
                     pass
             for j in range(l-4):
@@ -325,7 +368,7 @@ def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
                 try:
                     endscore5 = endhash5[k]
                     numGC = len([b for b in k if b in GC_LETTER])
-                    p_badness += (endscore5 * END5 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
+                    p_badness += conc * (endscore5 * END5 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
                 except KeyError:
                     pass
             for j in range(l-5):
@@ -333,7 +376,7 @@ def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
                 try:
                     endscore6 = endhash6[k]
                     numGC = len([b for b in k if b in GC_LETTER])
-                    p_badness += (endscore6 * END6 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
+                    p_badness += conc * (endscore6 * END6 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
                 except KeyError:
                     pass
             for j in range(l-6):
@@ -341,7 +384,7 @@ def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
                 try:
                     midscore7 = middlehash7[k]
                     numGC = len([b for b in k if b in GC_LETTER])
-                    p_badness += (midscore7 * MIDDLE7 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
+                    p_badness += conc * (midscore7 * MIDDLE7 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
                 except KeyError:
                     pass
             for j in range(l-7):
@@ -349,7 +392,8 @@ def PrimerSetBadnessFast(all_fP: list, all_rP=[], existing=[]):
                 try:
                     midscore8 = middlehash8[k]
                     numGC = len([b for b in k if b in GC_LETTER])
-                    p_badness += (midscore8 * MIDDLE8 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
+                    # p_badness += (midscore8 * MIDDLE8 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
+                    p_badness += conc * (midscore8 * MIDDLE8 * (PENALTY_OFFSET+1)/(j+1+PENALTY_OFFSET)) * (2**numGC)
                 except KeyError:
                     pass
             Badness += p_badness
