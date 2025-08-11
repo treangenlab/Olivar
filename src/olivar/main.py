@@ -72,7 +72,7 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
     '''
     Build the Olivar reference file for tiled amplicon design, handling gaps in the MSA.
     Input:
-        fasta_path: Optional, Path to the FASTA reference sequence.
+        fasta_path: Optional, Path to the FASTA reference sequence. The sequence should be high-quality and contain no degenerate bases
         msa_path: Optional, Path to the MSA file (Multiple Sequence Alignment in FASTA format).
         var_path: Optional, path to the CSV file of SNP coordinates and frequencies. 
             Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.
@@ -82,7 +82,7 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         threads: Number of threads [1]. 
         align: Control whether do alignment for MSA file or not [False]. 
         min_var: Minimum frequency threshold for sequence variations generated from the input MSA [0.01].
-        deg: Control whether use degenerate mode or not.
+        deg: Control whether use degenerate mode or not. This mode only works with MSA input.
     '''
     if not msa_path and not fasta_path:
         raise ValueError("Either 'msa_path' or 'fasta_path' must be provided.")
