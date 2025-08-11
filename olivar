@@ -23,7 +23,7 @@ if __name__ == "__main__":
     build_parser = subparsers.add_parser('build', help='Build Olivar design reference.')
     build_parser.add_argument(
         '--fasta', '-f', type=str, default=None, metavar='fasta-file', 
-        help='Optional, Path to the FASTA reference sequence.')
+        help='Optional, Path to the FASTA reference sequence. The sequence should be high-quality and contain no degenerate bases')
     build_parser.add_argument(
         '--var', '-v', type=str, default=None, metavar='<string>', 
         help='Optional, path to the csv file of SNP coordinates and frequencies. Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.')
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         help='Minimum frequency threshold for sequence variations generated from the input MSA.')
     build_parser.add_argument(
         '--deg', action='store_true', 
-        help='Control whether use degenerate mode or not.'
+        help='Control whether use degenerate mode or not. This mode only works with MSA input (--msa).'
     )
 
     # tiling

@@ -166,7 +166,7 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 ```
 | Argument &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Default &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Description|
 | :-------  | :----- | :-------- | 
-|--fasta, -f| **None**| Positional argument. Path to the FASTA reference sequence.|
+|--fasta, -f| **None**| Positional argument. Path to the FASTA reference sequence. The sequence should be high-quality and contain no degenerate bases.|
 |--var, -v| **None**| Optional, path to the csv file of SNP coordinates and frequencies. Required columns: "START", "STOP", "FREQ". "FREQ" is considered as 1.0 if empty. Coordinates are 1-based.|
 |--msa, -m| **None**| Path to the MSA (or a group of unaligned sequences) in FASTA format.|
 |--db, -d| **None**| Optional, path to the BLAST database. Note that this path should end with the name of the BLAST database (e.g., "example_input/Human/GRCh38_primary").|
@@ -175,7 +175,7 @@ olivar build [--fasta <string>] [--var <string>] [--msa <string>] [--db <string>
 |--threads, -p| 1| Number of threads.|
 |--min-var| 0.01| Minimum frequency threshold for sequence variations generated from the input MSA.|
 |--align, -a| N/A| Boolean flag. Make an MSA with [mafft](https://mafft.cbrc.jp/alignment/software/) if the sequences provided to `--msa` are not aligned.|
-|--deg| N/A| Boolean flag. If enabled, builds the reference file using degenerate IUPAC nucleotide codes to represent variations (e.g., "R" for A/G, "Y" for C/T).|
+|--deg| N/A| Boolean flag. When enabled, builds the reference using degenerate IUPAC nucleotide codes to represent sequence variations (e.g., "R" for A/G, "Y" for C/T). **Note:** This mode only works with MSA input (--msa).|
 
 #### sub-command: `tiling`
 ```
@@ -212,7 +212,7 @@ olivar tiling olvr-path [--output <string>] [--title <string>] [--max-amp-len <i
 |--seed| 10| Random seed for optimizing PDRs and SADDLE.|
 |--threads, -p| 1| Number of threads.|
 |--iterMul| 1| Multiplier of iterations during PDR optimization.|
-|--deg| N/A| Boolean flag. If enabled, design primers using degenerate IUPAC nucleotide codes to represent variations (e.g., "R" for A/G, "Y" for C/T).|
+|--deg| N/A| Boolean flag. When enabled, design the primers using degenerate IUPAC nucleotide codes to represent sequence variations (e.g., "R" for A/G, "Y" for C/T).|
 
 #### sub-command: `save`
 ```
