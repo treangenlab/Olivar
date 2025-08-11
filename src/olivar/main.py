@@ -62,11 +62,13 @@ from msa_tools import run_validate, run_preprocess, run_cmd
 from build_helper import run_build
 from tiling_helper import design_context_seq, get_primer, optimize, to_df
 from save_helper import save
+from msa_tools import expand_degenerate_sequence, average_scores
+
 
 REFEXT = '.olvr' # extension for Olivar reference file
 DESIGNEXT = '.olvd' # extension for Olivar design file
 
-def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int, align: bool, min_var: float):
+def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path: str, title: str, threads: int, align: bool, min_var: float, deg: bool):
     '''
     Build the Olivar reference file for tiled amplicon design, handling gaps in the MSA.
     Input:
@@ -78,8 +80,9 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         out_path: Output directory [./]. 
         title: Name of the Olivar reference file [MSA record ID]. 
         threads: Number of threads [1]. 
-        align: Conrol whether do alignment for MSA file or not [False]. 
+        align: Control whether do alignment for MSA file or not [False]. 
         min_var: Minimum frequency threshold for sequence variations generated from the input MSA [0.01].
+        deg: Control whether use degenerate mode or not.
     '''
     if not msa_path and not fasta_path:
         raise ValueError("Either 'msa_path' or 'fasta_path' must be provided.")
@@ -89,9 +92,9 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         if not os.path.exists(msa_path):
             raise FileNotFoundError(f"MSA file '{msa_path}' not found.")
         fasta_path = None
-        msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
         if align:
             logger.info("Running alignment with MAFFT...")
+            msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
             aligned_msa_path = os.path.join(out_path, os.path.basename(msa_path).replace('.fasta', '_aligned.fasta'))
             msa_str = run_cmd('mafft', '--auto', '--thread', str(threads), msa_path)
 
@@ -101,17 +104,24 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
                 f.write(msa_str)
             msa_path = aligned_msa_path
         #fasta_path, var_path = run_preprocess(io.StringIO(msa_str), msa_filename, out_path, threads)
-        fasta_path, var_path = run_preprocess(msa_path, msa_filename, out_path, threads, min_var)
+        fasta_path, var_path = run_preprocess(msa_path, msa_filename, out_path, threads, min_var, deg)
     else:
         if not os.path.exists(fasta_path):
             raise FileNotFoundError(f"FASTA file '{fasta_path}' not found.")
-    run_build(fasta_path, var_path, BLAST_db, out_path, title, threads)
+        if deg: 
+            logger.warning('Degenerate mode only supported by MSA input. Will proceed in normal mode...')
+            deg = False
+    if deg:
+        run_build(fasta_path, msa_path, var_path, BLAST_db, out_path, title, threads, deg=deg)
+    else:
+        run_build(fasta_path, None, var_path, BLAST_db, out_path, title, threads, deg=deg)
 
 
 def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_len: int, 
-    w_egc: float, w_lc: float, w_ns: float, w_var: float, temperature: float, salinity: float, 
-    dG_max: float, min_GC: float, max_GC: float, min_complexity: float, max_len: int, 
-    check_var: bool, fP_prefix: str, rP_prefix: str, seed: int, threads: int, iterMul: int):
+    w_egc: float, w_lc: float, w_ns: float, w_var: float, w_sensi: float, w_combi: float,
+    temperature: float, salinity: float, dG_max: float, min_GC: float, max_GC: float, 
+    min_complexity: float, max_len: int, check_var: bool, fP_prefix: str, rP_prefix: str,
+    seed: int, threads: int, iterMul: int, deg: bool):
     '''
     Design tiled amplicons. 
     Input:
@@ -124,6 +134,10 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         w_lc: Weight for low sequence complexity [1.0].
         w_ns: Weight for non-specificity [1.0].
         w_var: Weight for variations [1.0].
+        
+        w_sensi: Weight for sensitivity [1.0].
+        w_combi: Weight for combinations [1.0].
+        
         temperature: PCR annealing temperature [60.0].
         salinity: Concentration of monovalent ions in units of molar [0.18].
         dG_max: Maximum free energy change of a primer in kcal/mol [-11.8].
@@ -139,7 +153,13 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         seed: Random seed for optimizing primer design regions and primer dimer [10].
         threads: Number of threads [1].
         iterMul: Multiplier of iterations during PDR optimization [1].
+        deg: Control whether use degenerate mode or not.
     '''
+    if deg:
+        logger.info('Designing in degenerate mode...')
+    else:
+        logger.info('Designing in normal mode...')
+    
     config = {
         'ref_path': ref_path, 
         'out_path': out_path, 
@@ -150,6 +170,10 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
         'w_lc': w_lc, 
         'w_ns': w_ns, 
         'w_var': w_var, 
+        
+        'w_sensi': w_sensi,
+        'w_combi': w_combi,
+        
         'temperature': temperature, 
         'salinity': salinity, 
         'dG_max': dG_max, 
@@ -207,7 +231,7 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
     for ref_name, ref_path in ref_path_dict.items():
         config['ref_path'] = ref_path
         logger.info(f'Designing PDRs for {ref_name} using {ref_path}...')
-        temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, all_loss, seq_record = design_context_seq(config)
+        temp_dict, risk_arr, gc_arr, comp_arr, hits_arr, var_arr, sensi_arr, combi_arr, all_loss, seq_record = design_context_seq(config, deg=deg)
         all_plex_info.update(temp_dict)
         all_ref_info[ref_name] = {
             'risk_arr': risk_arr, 
@@ -215,13 +239,16 @@ def tiling(ref_path: str, out_path: str, title: str, max_amp_len: int, min_amp_l
             'comp_arr': comp_arr, 
             'hits_arr': hits_arr, 
             'var_arr': var_arr, 
+
+            'sensi_arr': sensi_arr,
+            'combi_arr': combi_arr,
+
             'all_loss': all_loss, 
             'seq_record': seq_record, 
         }
     
     # revert modified config values
     config['ref_path'] = design_ref_path
-
     all_plex_info_primer = get_primer(all_plex_info, config)
     all_plex_info_optimize, learning_curve = optimize(all_plex_info_primer, config)
     df, art_df = to_df(all_plex_info_optimize, config)
@@ -279,35 +306,65 @@ def specificity(primer_pool: str, pool: int, BLAST_db: str, out_path: str,
 
     # non-specific simulation
     if BLAST_db:
-        df_ns, df_count, all_hits = ns_simulation(BLAST_db, seq_list, seq_names, max_amp_len, threads)
+        expanded_seqs = []
+        expanded_names = []
+        for i, seq in enumerate(seq_list):
+            expanded = expand_degenerate_sequence(seq)
+            for j, var_seq in enumerate(expanded):
+                expanded_seqs.append(var_seq)
+                expanded_names.append(f"{seq_names[i]}_var{j}")
+
+        # Run BLAST on all expanded sequences
+        df_ns_expanded, df_count_expanded, all_expanded_hits = ns_simulation(
+            BLAST_db, expanded_seqs, expanded_names, max_amp_len, threads
+        )
+
+        name_to_seq = dict(zip(expanded_names, expanded_seqs))
+        # --- Non-specific amplicons ---
+        df_ns = df_ns_expanded.copy()
+        df_ns["fP_seq"] = df_ns["fP"].map(name_to_seq)
+        df_ns["rP_seq"] = df_ns["rP"].map(name_to_seq)
         save_path = os.path.join(out_path, f'{title}_pool-{pool}_ns-amp.csv')
         df_ns.to_csv(save_path, index=False)
         logger.info('Non-specific amplicons saved as %s' % save_path)
+
+        # --- Non-specific primer pairs ---
+        df_count = df_count_expanded.copy()
+        df_count["fP_seq"] = df_count["fP"].map(name_to_seq)
+        df_count["rP_seq"] = df_count["rP"].map(name_to_seq)
         save_path = os.path.join(out_path, f'{title}_pool-{pool}_ns-pair.csv')
         df_count.to_csv(save_path, index=False)
         logger.info('Non-specific primer pairs saved as %s' % save_path)
+
+        all_hits = all_expanded_hits[:]  # keep each variant's hit count
+        expanded_seq_list = expanded_seqs
+        expanded_seq_names = expanded_names
     else:
         all_hits = np.zeros(len(seq_list)) - 1
+        expanded_seq_list = seq_list
+        expanded_seq_names = seq_names
         logger.info('No BLAST database provided, skipped.')
 
-    # calculate Badness
-    #all_rep = [seq2arr(p) for p in seq_list]
-    _, all_bad = PrimerSetBadnessFast(seq_list)
+    # calculate Badness for each expanded sequence
+    _, all_bad = PrimerSetBadnessFast(expanded_seq_list)
     all_bad = all_bad[0]
 
     # calculate dG
     gen = design.primer_generator(temperature=temperature, salinity=0.18)
-    all_dG = [gen.dG_init+gen.StacksDG(p) for p in seq_list]
+    all_dG = average_scores(expanded_seq_list, lambda p: gen.dG_init + gen.StacksDG(p))
 
     df_val = pd.DataFrame({
-        'name': seq_names, 
-        'seq': seq_list, 
-        'length': [len(p) for p in seq_list], 
-        '%GC': [basic.get_GC(p) for p in seq_list], 
-        'complexity': [basic.get_complexity(p) for p in seq_list], 
-        'dG (%dC)' % temperature: all_dG, 
-        'self_align': [design.WAlignScore(p) for p in seq_list], 
-        'dimer_score': all_bad, 
+        'name': expanded_seq_names,
+        'seq': expanded_seq_list,
+        'length': [len(p) for p in expanded_seq_list],
+        #'%GC': [basic.get_GC(p) for p in seq_list],
+        '%GC': average_scores(expanded_seq_list, basic.get_GC),
+        #'complexity': [basic.get_complexity(p) for p in seq_list], 
+        'complexity': average_scores(expanded_seq_list, basic.get_complexity),
+        f'dG ({temperature}C)': all_dG,
+        #'self_align': [design.WAlignScore(p) for p in seq_list], 
+        'self_align': average_scores(expanded_seq_list, design.WAlignScore),
+        'dimer_score': all_bad,
         'BLAST_hits': all_hits
     })
     save_path = os.path.join(out_path, f'{title}_pool-{pool}.csv')
