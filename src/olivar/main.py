@@ -92,9 +92,9 @@ def build(fasta_path: str, msa_path: str, var_path: str, BLAST_db: str, out_path
         if not os.path.exists(msa_path):
             raise FileNotFoundError(f"MSA file '{msa_path}' not found.")
         fasta_path = None
+        msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
         if align:
             logger.info("Running alignment with MAFFT...")
-            msa_filename = os.path.splitext(os.path.basename(msa_path))[0]
             aligned_msa_path = os.path.join(out_path, os.path.basename(msa_path).replace('.fasta', '_aligned.fasta'))
             msa_str = run_cmd('mafft', '--auto', '--thread', str(threads), msa_path)
 
