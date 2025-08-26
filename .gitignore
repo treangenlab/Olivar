@@ -1,7 +1,0 @@
-*.ipynb
-*.ipynb_checkpoints
-*.vscode
-pylint*
-.DS_Store
-build
-*.egg-info
