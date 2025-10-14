@@ -823,6 +823,7 @@ def get_sensitivity(seq: str, start: int, stop: int, msa_path: str, deg: bool):
         msa._consensus2msa[start]: msa._consensus2msa[stop]
     ]
     msa_slice = [''.join(s).replace('-', '') for s in msa_slice]
+    seq = seq.upper()
     n_perfect_match = len([True for s in msa_slice if s in expand_degenerate_sequence(seq)])
     
     sensitivity = (100 * n_perfect_match / msa.row) if msa else 0
