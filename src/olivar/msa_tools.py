@@ -120,7 +120,8 @@ IUPAC_CODES = {
 
 # create substitution matrix for local pairwise alignment
 from Bio.Align.substitution_matrices import Array
-SUBMTX = Array(tuple(AMBFREQ), dims=2) - 1 # set mismatch_score = -1
+SUBMTX = Array(''.join(ALPHABET), dims=2) # must use string as alphabet for string alignment
+SUBMTX[:] = -1 # set mismatch_score = -1
 for b1, b2 in AMBMAPPING:
     SUBMTX[b1, b2] = 1  # set match_score = -1
     SUBMTX[b2, b1] = 1
