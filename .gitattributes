@@ -1,2 +1,0 @@
-*.nsq filter=lfs diff=lfs merge=lfs -text
-example_output/*.html linguist-generated
