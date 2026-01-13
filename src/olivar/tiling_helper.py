@@ -510,8 +510,8 @@ def optimize(all_plex_info, config):
         for n, (plex_id, i) in enumerate(curr_index.items()):
             all_plex_info[plex_id]['fP'] = all_plex_info[plex_id]['optimize'][i][0]
             all_plex_info[plex_id]['rP'] = all_plex_info[plex_id]['optimize'][i][1]
-            all_plex_info[plex_id]['fP_badness'] = comp_badness[0][n]
-            all_plex_info[plex_id]['rP_badness'] = comp_badness[1][n]
+            # all_plex_info[plex_id]['fP_badness'] = comp_badness[0][n]
+            # all_plex_info[plex_id]['rP_badness'] = comp_badness[1][n]
 
         all_lc.append(learning_curve)
     
