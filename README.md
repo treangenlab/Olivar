@@ -7,21 +7,24 @@
 Olivar is a command-line tool for multiplex PCR tiling design. Olivar first builds an index for each target of interest, incorporating undesired sequence features such as homologous regions, SNPs and extreme GC content. Olivar then designs tiled amplicons covering a single index or multiple indexes, and minimizes primer dimers with the [SADDLE](https://doi.org/10.1038/s41467-022-29500-4) algorithm. Olivar is published as an [article](https://doi.org/10.1038/s41467-024-49957-9) on Nature Communications. 
 ![](Figures/Fig1.png)
 
-## Web Interface
+## Install with Bioconda
 
-A web interface is available at [olivar.rice.edu](https://olivar.rice.edu/), although it does not support all available functions at the moment. 
+**Prerequisites**
+- Linux, macOS, or Windows via [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
+- x64 or ARM64
+- conda (install with [miniforge](https://github.com/conda-forge/miniforge#install) or [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions))
 
-## Install with Bioconda (Linux x64 or Mac Intel chip)
-
-#### 1. Install Miniconda if not installed already ([quick command line install](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions))
-#### 2. Create a new Conda environment named "olivar" and install Olivar via Bioconda
+**1. Create a new Conda environment "olivar" and install Olivar via Bioconda**
 ```
-conda create -n olivar olivar --channel conda-forge --channel bioconda --strict-channel-priority
+conda create -n olivar olivar \
+  --channel conda-forge \
+  --channel bioconda \
+  --strict-channel-priority
 ```
 > [!TIP]
 > Setting channel priority is important for Bioconda packages to function properly. You may also persist channel priority settings for all package installation by modifying your `~/.condarc` file. For more information, check the [Bioconda documentation](https://bioconda.github.io/). 
 
-#### 3. Activate the new Conda environment and run Olivar
+**2. Activate the environment and verify the install**
 ```
 conda activate olivar
 olivar --help
