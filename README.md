@@ -139,8 +139,8 @@ olivar specificity example_output/olivar-design.csv --pool 1 -d example_input/Hu
 | olivar-specificity_pool-1_ns-pair.csv| Predicted non-specific primer pairs. |
 
 #### (Optional) Check sensitivity of existing primer pools against an MSA of target sequences
- - Input should be a CSV file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. 
- - An MSA of target sequences is required. 
+ - Primers should be included in a CSV file, with four required columns: "amplicon_id" (amplicon name), "fP" (sequence of forward primer), "rP" (sequence of reverse primer) and "pool" (primer pool number, e.g., 1). This could be an Olivar designed primer pool generated in step 2, or primer pools that are not designed by Olivar. 
+ - Target sequences should be provided as a FASTA file. If an MSA hasn't been made, add the `--align` flag to calculate the MSA with MAFFT. 
  - Use multiple CPU cores (`-p`) to accelerate this process. 
  - Output files are listed below (coordinates are 1-based). 
 ```
