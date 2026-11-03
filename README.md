@@ -32,13 +32,13 @@ olivar --help
 
 ## Dependencies
 ```
-python >=3.8
+python >=3.12
 blast >=2.12.0
 mafft
 biopython
 numpy <2
 pandas
-plotly >=5.13.0
+plotly >=5.13.0,<6
 tqdm
 ```
 
